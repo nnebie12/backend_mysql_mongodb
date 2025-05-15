@@ -1,0 +1,57 @@
+services:
+  # Service pour l'application Spring Boot
+  app:
+    build:
+      context: .
+      args:
+        MAVEN_OPTS: "-Xmx512m"
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_started
+    restart: on-failure
+    mem_limit: 1g
+    environment:
+      # MySQL config
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/RECETTE?createDatabaseIfNotExist=true
+      - SPRING_DATASOURCE_USERNAME==${SPRING_DATASOURCE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
+
+      # MongoDB config pour utiliser MongoDB Atlas ou un serveur externe
+      - SPRING_DATA_MONGODB_URI=mongodb+srv://nnebiekassi12:gG0MQ6ue6qourIJv@dayana.jpsji.mongodb.net/ProjetRecette?retryWrites=true&w=majority&appName=Dayana
+      - SPRING_DATA_MONGODB_DATABASE=ProjetRecette
+      - SPRING_DATA_MONGODB_SSL_ENABLED=true
+      - SPRING_DATA_MONGODB_SSL_INVALID_HOSTNAME_ALLOWED=true
+
+      # Autres configs
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_SHOW_SQL=true
+      - JWT_EXPIRATION=${JWT_EXPIRATION}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
+      - SMS_RECIPIENT=${SMS_RECIPIENT}
+    networks:
+      - spring-network
+
+  # Service pour MySQL
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "8887:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - spring-network
+    command: --default-authentication-plugin=mysql_native_password
+
+networks:
+  spring-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
