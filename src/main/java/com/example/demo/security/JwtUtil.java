@@ -18,7 +18,7 @@ public class JwtUtil {
 
     private final SecretKey secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS512);
     
-    @Value("${jwt.expiration:86400000}")
+    @Value("${JWT_EXPIRATION:86400000}")
     private long jwtExpiration;
 
     public String generateToken(String email, Long userId, String role) {
