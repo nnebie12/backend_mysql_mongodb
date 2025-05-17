@@ -37,7 +37,7 @@ services:
 
   # Service pour MySQL
   mysql:
-    image: recette-mysql:8.0
+    image: recette-mysql-1:8.0
     ports:
       - "8887:3306"
     environment:
