@@ -37,7 +37,7 @@ services:
 
   # Service pour MySQL
   mysql:
-    image: mysql:8.0
+    image: mysql-1:8.0
     ports:
       - "8887:3306"
     environment:
