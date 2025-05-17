@@ -46,7 +46,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKER_REPO }}:latest
+          tags: ${{ secrets.DOCKER_REPO || 'default-repo'}}:latest
 
       - name: Start Docker Compose
         run: docker-compose -f docker-compose.yml up -d
