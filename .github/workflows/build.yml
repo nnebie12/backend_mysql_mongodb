@@ -56,12 +56,24 @@ jobs:
 
       - name: Wait for MySQL to be ready
         run: |
-          echo "Waiting for MySQL to be ready..."
+          echo "⏳ Waiting for MySQL to be ready..."
+
+          MYSQL_CONTAINER=$(docker ps --filter "ancestor=mysql:8.0" --format "{{.Names}}")
+          echo "MySQL container detected: $MYSQL_CONTAINER"
+
           for i in {1..30}; do
-            docker exec mysql mysqladmin ping -h "localhost" -uroot -p"${{ secrets.MYSQL_ROOT_PASSWORD }}" && break
+            if docker exec "$MYSQL_CONTAINER" mysqladmin ping -h "localhost" -uroot -p"${{ secrets.MYSQL_ROOT_PASSWORD }}" --silent; then
+              echo "MySQL is ready!"
+              break
+            fi
             echo "Still waiting..."
             sleep 2
           done
+
+          if [ $i -eq 30 ]; then
+            echo "MySQL did not start in time"
+            exit 1
+          fi
 
       - name: Shut down Docker Compose
         run: docker compose -f docker-compose.yml down
