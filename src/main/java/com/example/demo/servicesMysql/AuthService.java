@@ -67,4 +67,8 @@ public class AuthService {
         user.setMotDePasse(passwordEncoder.encode(user.getMotDePasse()));
         return userService.saveUser(user);
     }
+    
+    public String getEmailFromToken(String token) {
+        return jwtUtil.extractEmail(token);
+    }
 }

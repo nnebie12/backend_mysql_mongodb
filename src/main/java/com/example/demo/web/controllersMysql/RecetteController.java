@@ -22,7 +22,6 @@ import com.example.demo.entitiesMysql.RecetteEntity;
 import com.example.demo.entitiesMysql.RecetteIngredientEntity;
 import com.example.demo.servicesMysql.RecetteService;
 
-import io.swagger.v3.oas.annotations.Operation;
 
 @RestController
 @RequestMapping("/api/v1/RecetteEntity")
@@ -30,12 +29,6 @@ public class RecetteController {
 
 	@Autowired
     RecetteService recetteService;
-
-    @GetMapping("/test")
-    @Operation(summary = "Tester l'API", description = "Retourne un message de test")
-    public String test() {
-        return "Api Functional ok";
-    }
 
     @GetMapping("/all")
     public ResponseEntity<List<RecetteEntity>> getAllRecettes() {
@@ -98,25 +91,26 @@ public class RecetteController {
     
     @PostMapping("/{recetteId}/ingredients/{ingredientId}")
     public ResponseEntity<Void> addIngredientToRecette(
-            @PathVariable Long recetteEntityId,
-            @PathVariable Long ingredientEntityId,
+            @PathVariable Long recetteId,
+            @PathVariable Long ingredientId,
             @RequestParam String quantite) {  
-        recetteService.addIngredientToRecette(recetteEntityId, ingredientEntityId, quantite);
+        recetteService.addIngredientToRecette(recetteId, ingredientId, quantite);
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
 
+
     @DeleteMapping("/{recetteId}/ingredients/{ingredientId}")
     public ResponseEntity<Void> removeIngredientFromRecette(
-            @PathVariable Long recetteEntityId,
-            @PathVariable Long ingredientEntityId) {
-        recetteService.removeIngredientFromRecette(recetteEntityId, ingredientEntityId);
+            @PathVariable Long recetteId,
+            @PathVariable Long ingredientId) {
+        recetteService.removeIngredientFromRecette(recetteId, ingredientId);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
     @GetMapping("/{recetteId}/ingredients")
     public ResponseEntity<List<RecetteIngredientEntity>> getRecetteIngredients(
-            @PathVariable Long recetteEntityId) {
-        List<RecetteIngredientEntity> ingredients = recetteService.getRecetteIngredients(recetteEntityId);
+            @PathVariable Long recetteId) {
+        List<RecetteIngredientEntity> ingredients = recetteService.getRecetteIngredients(recetteId);
         return new ResponseEntity<>(ingredients, HttpStatus.OK);
     }
     

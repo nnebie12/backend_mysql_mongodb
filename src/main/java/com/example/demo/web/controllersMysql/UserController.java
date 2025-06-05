@@ -1,6 +1,5 @@
 package com.example.demo.web.controllersMysql;
 
-
 import com.example.demo.entitiesMysql.UserEntity;
 import com.example.demo.servicesMysql.UserService;
 import org.springframework.http.HttpStatus;
@@ -53,6 +52,10 @@ public class UserController {
                                        HttpServletRequest request) {
         Long authenticatedUserId = (Long) request.getAttribute("userId");
         
+        if (authenticatedUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token d'authentification requis");
+        }
+        
         if (!id.equals(authenticatedUserId)) {
             Optional<UserEntity> authUserOpt = userService.getUserById(authenticatedUserId);
             if (authUserOpt.isEmpty() || !"ADMIN".equals(authUserOpt.get().getRole())) {
@@ -71,6 +74,10 @@ public class UserController {
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteUser(@PathVariable Long id, HttpServletRequest request) {
         Long authenticatedUserId = (Long) request.getAttribute("userId");
+        
+        if (authenticatedUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token d'authentification requis");
+        }
         
         if (!id.equals(authenticatedUserId)) {
             Optional<UserEntity> authUserOpt = userService.getUserById(authenticatedUserId);

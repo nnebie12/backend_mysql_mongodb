@@ -29,19 +29,17 @@ public class NoteServiceImpl implements NoteService {
     }
 
     @Override
-    public Optional<NoteDocument> getNoteById(Long id) {
-        return noteRepository.findById(id.toString());
+    public Optional<NoteDocument> getNoteById(String id) {
+        return noteRepository.findById(id);
     }
 
     @Override
-    public NoteDocument updateNote(Long id, NoteDocument noteEntity) {
-        Optional<NoteDocument> existingNote = noteRepository.findById(id.toString());
-        
+    public NoteDocument updateNote(String id, NoteDocument noteEntity) {
+        Optional<NoteDocument> existingNote = noteRepository.findById(id);
+
         if (existingNote.isPresent()) {
             NoteDocument updatedNote = existingNote.get();
             updatedNote.setValeur(noteEntity.getValeur());
-            // Ne pas modifier userId et userName pour maintenir l'intégrité
-            
             return noteRepository.save(updatedNote);
         } else {
             throw new RuntimeException("Note not found with id: " + id);
@@ -49,7 +47,8 @@ public class NoteServiceImpl implements NoteService {
     }
 
     @Override
-    public void deleteNote(Long id) {
-        noteRepository.deleteById(id.toString());
+    public void deleteNote(String id) {
+        noteRepository.deleteById(id);
     }
+
 }
