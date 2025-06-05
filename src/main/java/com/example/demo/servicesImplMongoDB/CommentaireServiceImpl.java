@@ -1,5 +1,6 @@
 package com.example.demo.servicesImplMongoDB;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,8 +26,21 @@ public class CommentaireServiceImpl implements CommentaireService {
 
     @Override
     public CommentaireDocument addCommentaireEntity(CommentaireDocument commentaireEntity) {
+        if (commentaireEntity.getDateCommentaire() == null) {
+            commentaireEntity.setDateCommentaire(LocalDateTime.now());
+        }
+
+        if (commentaireEntity.getUserId() == null) {
+            commentaireEntity.setUserId("defaultUserId");
+        }
+
+        if (commentaireEntity.getUserName() == null) {
+            commentaireEntity.setUserName("Anonymous");
+        }
+
         return commentaireRepository.save(commentaireEntity);
     }
+
 
     @Override
     public Optional<CommentaireDocument> getCommentaireById(Long id) {

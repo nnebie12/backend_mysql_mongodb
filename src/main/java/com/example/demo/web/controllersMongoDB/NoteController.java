@@ -45,29 +45,22 @@ public class NoteController {
     }
     
     @GetMapping("/{id}")
-    public ResponseEntity<NoteDocument> getNoteById(@PathVariable Long id) {
+    public ResponseEntity<NoteDocument> getNoteById(@PathVariable String id) {
         return noteService.getNoteById(id)
                 .map(note -> new ResponseEntity<>(note, HttpStatus.OK))
                 .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
-    
+
     @PutMapping("/{id}")
-    public ResponseEntity<NoteDocument> updateNote(@PathVariable Long id, @RequestBody NoteDocument noteDetails) {
-        try {
-            NoteDocument updatedNote = noteService.updateNote(id, noteDetails);
-            return new ResponseEntity<>(updatedNote, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+    public ResponseEntity<NoteDocument> updateNote(@PathVariable String id, @RequestBody NoteDocument note) {
+        NoteDocument updated = noteService.updateNote(id, note);
+        return new ResponseEntity<>(updated, HttpStatus.OK);
     }
-    
+
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteNote(@PathVariable Long id) {
-        try {
-            noteService.deleteNote(id);
-            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+    public ResponseEntity<Void> deleteNote(@PathVariable String id) {
+        noteService.deleteNote(id);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
+
 }

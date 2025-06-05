@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.DTO.RecetteIngredientDTO;
@@ -39,13 +38,6 @@ public class RecetteIngredientController {
         List<RecetteIngredientEntity> ingredients = recetteIngredientService.getIngredientsByRecetteEntityId(recetteId);
         return new ResponseEntity<>(ingredients, HttpStatus.OK);
     }
-
-    
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteIngredientRecetteEntity(@PathVariable Long id) {
-        recetteIngredientService.deleteIngredientRecetteEntity(id);
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-    }
     
     @DeleteMapping("/recette/{recetteId}")
     public ResponseEntity<Void> deleteAllIngredientsRecetteEntity(@PathVariable Long recetteId) {
@@ -53,11 +45,11 @@ public class RecetteIngredientController {
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
     
-    @DeleteMapping
-    public ResponseEntity<Void> deleteRecetteIngredient(
-            @RequestParam Long recetteId,
-            @RequestParam Long ingredientId) {
-        recetteIngredientService.deleteRecetteIngredient(recetteId, ingredientId);
+    @DeleteMapping("/{recetteId}/{ingredientId}")
+    public ResponseEntity<Void> deleteIngredientRecetteEntity(
+            @PathVariable Long recetteId, 
+            @PathVariable Long ingredientId) {
+        recetteIngredientService.deleteIngredientRecetteEntity(recetteId, ingredientId);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 

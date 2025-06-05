@@ -9,7 +9,8 @@ public interface NoteService {
 
 	List<NoteDocument> getAllNoteEntity();
     NoteDocument addNoteEntity(NoteDocument noteEntity);
-    Optional<NoteDocument> getNoteById(Long id);
-    NoteDocument updateNote(Long id, NoteDocument noteEntity);
-    void deleteNote(Long id);
+    Optional<NoteDocument> getNoteById(String id);
+    NoteDocument updateNote(String id, NoteDocument noteEntity);
+    void deleteNote(String id);
+
 }

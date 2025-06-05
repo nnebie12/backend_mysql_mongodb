@@ -27,7 +27,6 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserEntity saveUser(UserEntity userEntity) {
-        userEntity.setMotDePasse(passwordEncoder.encode(userEntity.getMotDePasse()));
         return userRepository.save(userEntity);
     }
 
