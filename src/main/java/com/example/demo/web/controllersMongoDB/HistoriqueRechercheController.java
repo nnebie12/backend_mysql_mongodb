@@ -21,16 +21,16 @@ public class HistoriqueRechercheController {
     }
     
     @PostMapping
-    public ResponseEntity<HistoriqueRecherche> enregistrerRecherche(
+    public ResponseEntity<HistoriqueRecherche> recordSearch(
             @RequestParam Long userId,
             @RequestParam String terme,
             @RequestBody(required = false) List<HistoriqueRecherche.Filtre> filtres) {
-        HistoriqueRecherche historique = historiqueService.enregistrerRecherche(userId, terme, filtres);
+        HistoriqueRecherche historique = historiqueService.recordSearch(userId, terme, filtres);
         return new ResponseEntity<>(historique, HttpStatus.CREATED);
     }
     
     @PostMapping("/complete")
-    public ResponseEntity<HistoriqueRecherche> enregistrerRechercheComplete(
+    public ResponseEntity<HistoriqueRecherche> recordCompleteSearch(
             @RequestParam Long userId,
             @RequestParam String terme,
             @RequestBody(required = false) List<HistoriqueRecherche.Filtre> filtres,
@@ -39,69 +39,69 @@ public class HistoriqueRechercheController {
             @RequestParam(defaultValue = "navigation") String contexteRecherche,
             @RequestParam(defaultValue = "web") String sourceRecherche) {
         
-        HistoriqueRecherche historique = historiqueService.enregistrerRechercheComplete(
+        HistoriqueRecherche historique = historiqueService.recordCompleteSearch(
             userId, terme, filtres, nombreResultats, rechercheFructueuse, 
             contexteRecherche, sourceRecherche);
         return new ResponseEntity<>(historique, HttpStatus.CREATED);
     }
     
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<HistoriqueRecherche>> getHistoriqueByUserId(@PathVariable Long userId) {
-        List<HistoriqueRecherche> historique = historiqueService.getHistoriqueByUserId(userId);
+    public ResponseEntity<List<HistoriqueRecherche>> getHistoryByUserId(@PathVariable Long userId) {
+        List<HistoriqueRecherche> historique = historiqueService.getHistoryByUserId(userId);
         return ResponseEntity.ok(historique);
     }
     
     @GetMapping("/user/{userId}/statistiques")
-    public ResponseEntity<Map<String, Long>> getStatistiquesRecherche(@PathVariable Long userId) {
-        Map<String, Long> stats = historiqueService.getStatistiquesRecherche(userId);
+    public ResponseEntity<Map<String, Long>> getSearchStatistics(@PathVariable Long userId) {
+        Map<String, Long> stats = historiqueService.getSearchStatistics(userId);
         return ResponseEntity.ok(stats);
     }
     
     @GetMapping("/user/{userId}/termes-frequents")
-    public ResponseEntity<List<String>> getTermesFrequents(
+    public ResponseEntity<List<String>> getFrequentTerms(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "10") int limite) {
-        List<String> termes = historiqueService.getTermesFrequents(userId, limite);
+        List<String> termes = historiqueService.getFrequentTerms(userId, limite);
         return ResponseEntity.ok(termes);
     }
     
     @GetMapping("/user/{userId}/suggestions")
-    public ResponseEntity<List<String>> getSuggestionsRecherche(@PathVariable Long userId) {
-        List<String> suggestions = historiqueService.getSuggestionsRecherche(userId);
+    public ResponseEntity<List<String>> getSearchSuggestions(@PathVariable Long userId) {
+        List<String> suggestions = historiqueService.getSearchSuggestions(userId);
         return ResponseEntity.ok(suggestions);
     }
     
     @GetMapping("/similaires")
-    public ResponseEntity<List<HistoriqueRecherche>> getRecherchesSimilaires(@RequestParam String terme) {
-        List<HistoriqueRecherche> historiques = historiqueService.getRecherchesSimilaires(terme);
+    public ResponseEntity<List<HistoriqueRecherche>> getSimilarSearches(@RequestParam String terme) {
+        List<HistoriqueRecherche> historiques = historiqueService.getSimilarSearches(terme);
         return ResponseEntity.ok(historiques);
     }
     
     @GetMapping("/tendances")
-    public ResponseEntity<List<String>> getTermesTendance() {
-        List<String> tendances = historiqueService.getTermesTendance();
+    public ResponseEntity<List<String>> getTrendingTerms() {
+        List<String> tendances = historiqueService.getTrendingTerms();
         return ResponseEntity.ok(tendances);
     }
     
     @GetMapping("/user/{userId}/periode")
-    public ResponseEntity<List<HistoriqueRecherche>> getRecherchesPeriode(
+    public ResponseEntity<List<HistoriqueRecherche>> getSearchesByPeriod(
             @PathVariable Long userId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime debut,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fin) {
-        List<HistoriqueRecherche> recherches = historiqueService.getRecherchesPeriode(userId, debut, fin);
+        List<HistoriqueRecherche> recherches = historiqueService.getSearchesByPeriod(userId, debut, fin);
         return ResponseEntity.ok(recherches);
     }
     
     @DeleteMapping("/user/{userId}")
-    public ResponseEntity<Void> supprimerHistoriqueUtilisateur(@PathVariable Long userId) {
-        historiqueService.supprimerHistoriqueUtilisateur(userId);
+    public ResponseEntity<Void> deleteUserHistory(@PathVariable Long userId) {
+        historiqueService.deleteUserHistory(userId);
         return ResponseEntity.noContent().build();
     }
     
     @DeleteMapping("/maintenance")
-    public ResponseEntity<Void> nettoyerAnciennesRecherches(
+    public ResponseEntity<Void> cleanOldSearches(
             @RequestParam(defaultValue = "90") int joursRetention) {
-        historiqueService.nettoyerAnciennesRecherches(joursRetention);
+        historiqueService.cleanOldSearches(joursRetention);
         return ResponseEntity.noContent().build();
     }
 }

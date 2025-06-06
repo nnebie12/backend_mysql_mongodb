@@ -36,7 +36,6 @@ public interface PropositionRecommandationRepository extends MongoRepository<Pro
     List<PropositionRecommandation> findByIdUserAndStatutAndPrioriteGreaterThanEqual(
         Long idUser, String statut, Integer priorite);
     
-    // Utilise la convention de nommage Spring Data
     List<PropositionRecommandation> findByStatutAndDatePropositionBefore(String statut, LocalDateTime avant);
     
     List<PropositionRecommandation> findByIdRecommandation(String idRecommandation);
@@ -47,6 +46,5 @@ public interface PropositionRecommandationRepository extends MongoRepository<Pro
     
     List<PropositionRecommandation> findByScoreInteretGreaterThanEqual(Double scoreMin);
     
-    // Utilise la convention de nommage Spring Data
     List<PropositionRecommandation> findByFeedbackUserIsNotNull();
 }

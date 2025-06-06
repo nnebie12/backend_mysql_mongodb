@@ -91,7 +91,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
 
         // Récupérer les données des services existants
         List<InteractionUtilisateur> interactions = interactionService.getInteractionsByUserId(userId);
-        List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoriqueByUserId(userId);
+        List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoryByUserId(userId);
 
         // Vous pouvez décommenter ces lignes selon vos services disponibles
         // List<Favoris> favoris = favorisService.getFavorisByUserId(userId);
@@ -159,7 +159,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
                                                        Integer nombreResultats,
                                                        Boolean rechercheFructueuse) {
         // Utiliser votre service existant pour créer l'historique
-        HistoriqueRecherche nouvelleRecherche = historiqueRechercheService.enregistrerRecherche(userId, terme, filtres);
+        HistoriqueRecherche nouvelleRecherche = historiqueRechercheService.recordSearch(userId, terme, filtres);
 
         // Si vous avez enrichi votre service avec la méthode complète
         // HistoriqueRecherche nouvelleRecherche = historiqueRechercheService.enregistrerRechercheComplete(
@@ -220,7 +220,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
 
         // Recalculer le score d'engagement
         List<InteractionUtilisateur> interactions = interactionService.getInteractionsByUserId(userId);
-        List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoriqueByUserId(userId);
+        List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoryByUserId(userId);
         metriques.setScoreEngagement(calculerScoreEngagement(interactions, recherches));
         metriques.setProfilUtilisateur(determinerProfilUtilisateur(metriques.getScoreEngagement()));
 
@@ -231,7 +231,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
 
     @Override
     public List<String> getFrequentSearchTerms(Long userId) {
-        List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoriqueByUserId(userId);
+        List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoryByUserId(userId);
 
         return recherches.stream()
             .collect(Collectors.groupingBy(
@@ -321,7 +321,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
         // Statistiques détaillées depuis les services
         try {
             List<InteractionUtilisateur> interactions = interactionService.getInteractionsByUserId(userId);
-            List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoriqueByUserId(userId);
+            List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoryByUserId(userId);
 
             // Statistiques d'interaction
             statistiques.put("nombreInteractionsTotal", interactions.size());
@@ -438,7 +438,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             
             // Récupérer les données nécessaires pour l'analyse
             List<InteractionUtilisateur> interactions = interactionService.getInteractionsByUserId(userId);
-            List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoriqueByUserId(userId);
+            List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoryByUserId(userId);
             
             // Analyser les patterns et mettre à jour les métriques
             ComportementUtilisateur.MetriquesComportementales metriques = 
@@ -522,7 +522,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
         try {
             // Récupérer les données de l'utilisateur
             List<InteractionUtilisateur> interactions = interactionService.getInteractionsByUserId(userId);
-            List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoriqueByUserId(userId);
+            List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoryByUserId(userId);
             ComportementUtilisateur comportement = getOrCreateBehavior(userId);
 
             // 1. Patterns temporels
