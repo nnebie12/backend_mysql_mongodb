@@ -22,31 +22,31 @@ public interface PropositionRecommandationService {
     
     Optional<PropositionRecommandation> findByIdUserAndIdRecommandation(Long idUser, String idRecommandation);
     
-    PropositionRecommandation creerProposition(Long idUser, String idRecommandation, Integer priorite);
+    PropositionRecommandation createProposition(Long idUser, String idRecommandation, Integer priorite);
     
-    PropositionRecommandation accepterProposition(String id, String feedback);
+    PropositionRecommandation acceptProposition(String id, String feedback);
     
-    PropositionRecommandation refuserProposition(String id, String raisonRefus, String feedback);
+    PropositionRecommandation rejectProposition(String id, String raisonRefus, String feedback);
     
-    PropositionRecommandation ignorerProposition(String id);
+    PropositionRecommandation ignoreProposition(String id);
     
-    List<PropositionRecommandation> findPropositionsPendantes(Long idUser);
+    List<PropositionRecommandation> findPendingPropositions(Long idUser);
     
-    List<PropositionRecommandation> findPropositionsAvecNotificationPendante(Long idUser);
+    List<PropositionRecommandation> findPropositionsWithPendingNotification(Long idUser);
     
-    PropositionRecommandation marquerNotificationEnvoyee(String id);
+    PropositionRecommandation markNotificationSent(String id);
     
-    List<PropositionRecommandation> findPropositionsParPeriode(LocalDateTime debut, LocalDateTime fin);
+    List<PropositionRecommandation> findPropositionsByPeriod(LocalDateTime debut, LocalDateTime fin);
     
-    List<PropositionRecommandation> findPropositionsHautePriorite(Integer prioriteMin);
+    List<PropositionRecommandation> findHighPriorityPropositions(Integer prioriteMin);
     
-    void supprimerProposition(String id);
+    void deleteProposition(String id);
     
-    Long compterParStatut(String statut);
+    Long countByStatus(String statut);
     
-    Long compterPropositionsRecentesUser(Long idUser, LocalDateTime depuis);
+    Long countRecentPropositionsByUser(Long idUser, LocalDateTime depuis);
     
-    Double calculerTauxAcceptation(Long idUser);
+    Double calculateAcceptanceRate(Long idUser);
     
-    List<PropositionRecommandation> findPropositionsRepondues(Long idUser);
+    List<PropositionRecommandation> findAnsweredPropositions(Long idUser);
 }

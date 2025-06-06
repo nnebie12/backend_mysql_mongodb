@@ -35,7 +35,6 @@ public class HistoriqueRecherche {
     
     private List<Filtre> filtres = new ArrayList<>();
     
-    // Nouvelles propriétés pour enrichir l'analyse comportementale
     private Integer nombreResultats;
     private Boolean rechercheFructueuse;
     private String contexteRecherche; // "navigation", "recommendation", "direct"

@@ -7,16 +7,14 @@ import com.example.demo.entiesMongodb.HistoriqueRecherche;
 
 public interface HistoriqueRechercheService {
     
-    // Méthodes existantes
-    HistoriqueRecherche enregistrerRecherche(Long userId, String terme, 
+    HistoriqueRecherche recordSearch(Long userId, String terme, 
                                            List<HistoriqueRecherche.Filtre> filtres);
     
-    List<HistoriqueRecherche> getHistoriqueByUserId(Long userId);
-    List<HistoriqueRecherche> getRecherchesSimilaires(String terme);
-    void supprimerHistoriqueUtilisateur(Long userId);
+    List<HistoriqueRecherche> getHistoryByUserId(Long userId);
+    List<HistoriqueRecherche> getSimilarSearches(String terme);
+    void deleteUserHistory(Long userId);
     
-    // Nouvelles méthodes enrichies
-    HistoriqueRecherche enregistrerRechercheComplete(Long userId, String terme,
+    HistoriqueRecherche recordCompleteSearch(Long userId, String terme,
                                                    List<HistoriqueRecherche.Filtre> filtres,
                                                    Integer nombreResultats,
                                                    Boolean rechercheFructueuse,
@@ -24,15 +22,15 @@ public interface HistoriqueRechercheService {
                                                    String sourceRecherche);
     
     // Analyse et statistiques
-    Map<String, Long> getStatistiquesRecherche(Long userId);
-    List<String> getTermesFrequents(Long userId, int limite);
-    Double getTauxRecherchesFructueuses(Long userId);
-    List<HistoriqueRecherche> getRecherchesPeriode(Long userId, LocalDateTime debut, LocalDateTime fin);
+    Map<String, Long> getSearchStatistics(Long userId);
+    List<String> getFrequentTerms(Long userId, int limite);
+    Double getSuccessfulSearchRate(Long userId);
+    List<HistoriqueRecherche> getSearchesByPeriod(Long userId, LocalDateTime debut, LocalDateTime fin);
     
     // Recommandations basées sur l'historique
-    List<String> getSuggestionsRecherche(Long userId);
-    List<String> getTermesTendance();
+    List<String> getSearchSuggestions(Long userId);
+    List<String> getTrendingTerms();
     
     // Nettoyage et maintenance
-    void nettoyerAnciennesRecherches(int joursRetention);
+    void cleanOldSearches(int joursRetention);
 }

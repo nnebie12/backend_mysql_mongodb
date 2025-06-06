@@ -54,7 +54,7 @@ public class PropositionRecommandationServiceImpl implements PropositionRecomman
     }
     
     @Override
-    public PropositionRecommandation creerProposition(Long idUser, String idRecommandation, Integer priorite) {
+    public PropositionRecommandation createProposition(Long idUser, String idRecommandation, Integer priorite) {
         PropositionRecommandation proposition = new PropositionRecommandation();
         proposition.setIdUser(idUser);
         proposition.setIdRecommandation(idRecommandation);
@@ -73,7 +73,7 @@ public class PropositionRecommandationServiceImpl implements PropositionRecomman
 
     
     @Override
-    public PropositionRecommandation accepterProposition(String id, String feedback) {
+    public PropositionRecommandation acceptProposition(String id, String feedback) {
         Optional<PropositionRecommandation> optProposition = repository.findById(id);
         if (optProposition.isPresent()) {
             PropositionRecommandation proposition = optProposition.get();
@@ -86,7 +86,7 @@ public class PropositionRecommandationServiceImpl implements PropositionRecomman
     }
     
     @Override
-    public PropositionRecommandation refuserProposition(String id, String raisonRefus, String feedback) {
+    public PropositionRecommandation rejectProposition(String id, String raisonRefus, String feedback) {
         Optional<PropositionRecommandation> optProposition = repository.findById(id);
         if (optProposition.isPresent()) {
             PropositionRecommandation proposition = optProposition.get();
@@ -100,7 +100,7 @@ public class PropositionRecommandationServiceImpl implements PropositionRecomman
     }
     
     @Override
-    public PropositionRecommandation ignorerProposition(String id) {
+    public PropositionRecommandation ignoreProposition(String id) {
         Optional<PropositionRecommandation> optProposition = repository.findById(id);
         if (optProposition.isPresent()) {
             PropositionRecommandation proposition = optProposition.get();
@@ -112,17 +112,17 @@ public class PropositionRecommandationServiceImpl implements PropositionRecomman
     }
     
     @Override
-    public List<PropositionRecommandation> findPropositionsPendantes(Long idUser) {
+    public List<PropositionRecommandation> findPendingPropositions(Long idUser) {
         return repository.findByIdUserAndStatut(idUser, "PROPOSEE");
     }
     
     @Override
-    public List<PropositionRecommandation> findPropositionsAvecNotificationPendante(Long idUser) {
+    public List<PropositionRecommandation> findPropositionsWithPendingNotification(Long idUser) {
         return repository.findByIdUserAndNotificationEnvoyeeFalse(idUser);
     }
     
     @Override
-    public PropositionRecommandation marquerNotificationEnvoyee(String id) {
+    public PropositionRecommandation markNotificationSent(String id) {
         Optional<PropositionRecommandation> optProposition = repository.findById(id);
         if (optProposition.isPresent()) {
             PropositionRecommandation proposition = optProposition.get();
@@ -133,34 +133,32 @@ public class PropositionRecommandationServiceImpl implements PropositionRecomman
     }
     
     @Override
-    public List<PropositionRecommandation> findPropositionsParPeriode(LocalDateTime debut, LocalDateTime fin) {
+    public List<PropositionRecommandation> findPropositionsByPeriod(LocalDateTime debut, LocalDateTime fin) {
         return repository.findByDatePropositionBetween(debut, fin);
     }
     
     @Override
-    public List<PropositionRecommandation> findPropositionsHautePriorite(Integer prioriteMin) {
-        // Utilise la nouvelle méthode du repository
+    public List<PropositionRecommandation> findHighPriorityPropositions(Integer prioriteMin) {
         return repository.findByStatutAndPrioriteGreaterThanEqual("PROPOSEE", prioriteMin);
     }
     
     @Override
-    public void supprimerProposition(String id) {
+    public void deleteProposition(String id) {
         repository.deleteById(id);
     }
     
     @Override
-    public Long compterParStatut(String statut) {
+    public Long countByStatus(String statut) {
         return repository.countByStatut(statut);
     }
     
     @Override
-    public Long compterPropositionsRecentesUser(Long idUser, LocalDateTime depuis) {
+    public Long countRecentPropositionsByUser(Long idUser, LocalDateTime depuis) {
         return repository.countByIdUserAndDatePropositionAfter(idUser, depuis);
     }
     
     @Override
-    public Double calculerTauxAcceptation(Long idUser) {
-        // Utilise la nouvelle méthode du repository
+    public Double calculateAcceptanceRate(Long idUser) {
         List<PropositionRecommandation> repondues = repository.findByIdUserAndStatutIn(idUser, Arrays.asList("ACCEPTEE", "REFUSEE"));
         if (repondues.isEmpty()) return 0.0;
         
@@ -170,8 +168,7 @@ public class PropositionRecommandationServiceImpl implements PropositionRecomman
     }
     
     @Override
-    public List<PropositionRecommandation> findPropositionsRepondues(Long idUser) {
-        // Utilise la nouvelle méthode du repository
+    public List<PropositionRecommandation> findAnsweredPropositions(Long idUser) {
         return repository.findByIdUserAndStatutIn(idUser, Arrays.asList("ACCEPTEE", "REFUSEE"));
     }
 }

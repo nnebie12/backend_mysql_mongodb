@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.DTO.RejectPropositionDTO;
 import com.example.demo.entiesMongodb.PropositionRecommandation;
 import com.example.demo.servicesMongoDB.PropositionRecommandationService;
 
@@ -51,7 +50,7 @@ public class PropositionRecommandationController {
     }
     
     @GetMapping("/user/{idUser}")
-    public ResponseEntity<List<PropositionRecommandation>> getPropositionsByUtilisateur(@PathVariable Long idUser) {
+    public ResponseEntity<List<PropositionRecommandation>> getPropositionsByUserId(@PathVariable Long idUser) {
         try {
             List<PropositionRecommandation> propositions = service.findByIdUser(idUser);
             return new ResponseEntity<>(propositions, HttpStatus.OK);
@@ -82,9 +81,9 @@ public class PropositionRecommandationController {
     }
     
     @GetMapping("/user/{idUser}/pendantes")
-    public ResponseEntity<List<PropositionRecommandation>> getPropositionsPendantes(@PathVariable Long idUser) {
+    public ResponseEntity<List<PropositionRecommandation>> getPendingPropositions(@PathVariable Long idUser) {
         try {
-            List<PropositionRecommandation> propositions = service.findPropositionsPendantes(idUser);
+            List<PropositionRecommandation> propositions = service.findPendingPropositions(idUser);
             return new ResponseEntity<>(propositions, HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -92,9 +91,9 @@ public class PropositionRecommandationController {
     }
     
     @GetMapping("/user/{idUser}/notifications-pendantes")
-    public ResponseEntity<List<PropositionRecommandation>> getPropositionsAvecNotificationPendante(@PathVariable Long idUser) {
+    public ResponseEntity<List<PropositionRecommandation>> getPropositionsWithPendingNotification(@PathVariable Long idUser) {
         try {
-            List<PropositionRecommandation> propositions = service.findPropositionsAvecNotificationPendante(idUser);
+            List<PropositionRecommandation> propositions = service.findPropositionsWithPendingNotification(idUser);
             return new ResponseEntity<>(propositions, HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -102,13 +101,13 @@ public class PropositionRecommandationController {
     }
 
     @GetMapping("/periode")
-    public ResponseEntity<List<PropositionRecommandation>> getPropositionsParPeriode(
+    public ResponseEntity<List<PropositionRecommandation>> getPropositionsByPeriod(
             @RequestParam("debut") String debutStr,
             @RequestParam("fin") String finStr) {
         try {
             LocalDateTime debut = LocalDateTime.parse(debutStr);
             LocalDateTime fin = LocalDateTime.parse(finStr);
-            List<PropositionRecommandation> propositions = service.findPropositionsParPeriode(debut, fin);
+            List<PropositionRecommandation> propositions = service.findPropositionsByPeriod(debut, fin);
             return new ResponseEntity<>(propositions, HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -116,10 +115,10 @@ public class PropositionRecommandationController {
     }
 
     @GetMapping("/priorite-haute")
-    public ResponseEntity<List<PropositionRecommandation>> getPropositionsHautePriorite(
+    public ResponseEntity<List<PropositionRecommandation>> getHighPriorityPropositions(
             @RequestParam("min") Integer prioriteMin) {
         try {
-            List<PropositionRecommandation> propositions = service.findPropositionsHautePriorite(prioriteMin);
+            List<PropositionRecommandation> propositions = service.findHighPriorityPropositions(prioriteMin);
             return new ResponseEntity<>(propositions, HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -127,10 +126,10 @@ public class PropositionRecommandationController {
     }
 
     @GetMapping("/statistiques/user/{idUser}/recentes")
-    public ResponseEntity<Long> compterPropositionsRecentes(@PathVariable Long idUser, @RequestParam("depuis") String depuisStr) {
+    public ResponseEntity<Long> countRecentPropositions(@PathVariable Long idUser, @RequestParam("depuis") String depuisStr) {
         try {
             LocalDateTime depuis = LocalDateTime.parse(depuisStr);
-            Long count = service.compterPropositionsRecentesUser(idUser, depuis);
+            Long count = service.countRecentPropositionsByUser(idUser, depuis);
             return new ResponseEntity<>(count, HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -138,9 +137,9 @@ public class PropositionRecommandationController {
     }
 
     @GetMapping("/utilisateur/{idUser}/repondues")
-    public ResponseEntity<List<PropositionRecommandation>> getPropositionsRepondues(@PathVariable Long idUser) {
+    public ResponseEntity<List<PropositionRecommandation>> getAnsweredPropositions(@PathVariable Long idUser) {
         try {
-            List<PropositionRecommandation> propositions = service.findPropositionsRepondues(idUser);
+            List<PropositionRecommandation> propositions = service.findAnsweredPropositions(idUser);
             return new ResponseEntity<>(propositions, HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -159,12 +158,12 @@ public class PropositionRecommandationController {
     }
     
     @PostMapping("/creer")
-    public ResponseEntity<PropositionRecommandation> creerProposition(
+    public ResponseEntity<PropositionRecommandation> createProposition(
             @RequestParam Long idUser,
             @RequestParam String idRecommandation,
             @RequestParam(required = false) Integer priorite) {
         try {
-            PropositionRecommandation proposition = service.creerProposition(idUser, idRecommandation, priorite);
+            PropositionRecommandation proposition = service.createProposition(idUser, idRecommandation, priorite);
             return new ResponseEntity<>(proposition, HttpStatus.CREATED);
         } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -172,26 +171,12 @@ public class PropositionRecommandationController {
     }
     
     @PutMapping("/{id}/accepter")
-    public ResponseEntity<PropositionRecommandation> accepterProposition(
+    public ResponseEntity<PropositionRecommandation> acceptProposition(
             @PathVariable String id,
             @RequestBody(required = false) Map<String, String> body) {
         try {
             String feedback = body != null ? body.get("feedback") : null;
-            PropositionRecommandation proposition = service.accepterProposition(id, feedback);
-            return new ResponseEntity<>(proposition, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-    
-    @PutMapping("/{id}/refuser")
-    public ResponseEntity<PropositionRecommandation> refuserProposition(
-            @PathVariable String id,
-            @RequestBody RejectPropositionDTO dto) {
-        try {
-            PropositionRecommandation proposition = service.refuserProposition(id, dto.getRaisonRefus(), dto.getFeedback());
+            PropositionRecommandation proposition = service.acceptProposition(id, feedback);
             return new ResponseEntity<>(proposition, HttpStatus.OK);
         } catch (RuntimeException e) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -202,9 +187,9 @@ public class PropositionRecommandationController {
 
     
     @PutMapping("/{id}/ignorer")
-    public ResponseEntity<PropositionRecommandation> ignorerProposition(@PathVariable String id) {
+    public ResponseEntity<PropositionRecommandation> ignoreProposition(@PathVariable String id) {
         try {
-            PropositionRecommandation proposition = service.ignorerProposition(id);
+            PropositionRecommandation proposition = service.ignoreProposition(id);
             return new ResponseEntity<>(proposition, HttpStatus.OK);
         } catch (RuntimeException e) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -214,9 +199,9 @@ public class PropositionRecommandationController {
     }
     
     @PutMapping("/{id}/notification-envoyee")
-    public ResponseEntity<PropositionRecommandation> marquerNotificationEnvoyee(@PathVariable String id) {
+    public ResponseEntity<PropositionRecommandation> markNotificationSent(@PathVariable String id) {
         try {
-            PropositionRecommandation proposition = service.marquerNotificationEnvoyee(id);
+            PropositionRecommandation proposition = service.markNotificationSent(id);
             return new ResponseEntity<>(proposition, HttpStatus.OK);
         } catch (RuntimeException e) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -228,7 +213,7 @@ public class PropositionRecommandationController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProposition(@PathVariable String id) {
         try {
-            service.supprimerProposition(id);
+            service.deleteProposition(id);
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);
         } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -236,9 +221,9 @@ public class PropositionRecommandationController {
     }
     
     @GetMapping("/statistiques/statut/{statut}")
-    public ResponseEntity<Long> compterParStatut(@PathVariable String statut) {
+    public ResponseEntity<Long> countByStatus(@PathVariable String statut) {
         try {
-            Long count = service.compterParStatut(statut);
+            Long count = service.countByStatus(statut);
             return new ResponseEntity<>(count, HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -246,9 +231,9 @@ public class PropositionRecommandationController {
     }
     
     @GetMapping("/statistiques/user/{idUser}/taux-acceptation")
-    public ResponseEntity<Double> getTauxAcceptation(@PathVariable Long idUser) {
+    public ResponseEntity<Double> getAcceptanceRate(@PathVariable Long idUser) {
         try {
-            Double taux = service.calculerTauxAcceptation(idUser);
+            Double taux = service.calculateAcceptanceRate(idUser);
             return new ResponseEntity<>(taux, HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);

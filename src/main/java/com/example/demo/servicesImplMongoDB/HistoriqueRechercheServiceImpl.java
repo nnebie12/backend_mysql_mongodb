@@ -18,14 +18,14 @@ public class HistoriqueRechercheServiceImpl implements HistoriqueRechercheServic
     }
     
     @Override
-    public HistoriqueRecherche enregistrerRecherche(Long userId, String terme, 
+    public HistoriqueRecherche recordSearch(Long userId, String terme, 
                                                   List<HistoriqueRecherche.Filtre> filtres) {
-        return enregistrerRechercheComplete(userId, terme, filtres, null, null, 
+        return recordCompleteSearch(userId, terme, filtres, null, null, 
                                           "navigation", "web");
     }
     
     @Override
-    public HistoriqueRecherche enregistrerRechercheComplete(Long userId, String terme,
+    public HistoriqueRecherche recordCompleteSearch(Long userId, String terme,
                                                           List<HistoriqueRecherche.Filtre> filtres,
                                                           Integer nombreResultats,
                                                           Boolean rechercheFructueuse,
@@ -47,24 +47,24 @@ public class HistoriqueRechercheServiceImpl implements HistoriqueRechercheServic
     }
     
     @Override
-    public List<HistoriqueRecherche> getHistoriqueByUserId(Long userId) {
+    public List<HistoriqueRecherche> getHistoryByUserId(Long userId) {
         return historiqueRepository.findByUserIdOrderByDateRechercheDesc(userId);
     }
     
     @Override
-    public List<HistoriqueRecherche> getRecherchesSimilaires(String terme) {
+    public List<HistoriqueRecherche> getSimilarSearches(String terme) {
         return historiqueRepository.findByTermeContainingIgnoreCase(terme);
     }
     
     @Override
-    public void supprimerHistoriqueUtilisateur(Long userId) {
+    public void deleteUserHistory(Long userId) {
         List<HistoriqueRecherche> historiques = historiqueRepository.findByUserId(userId);
         historiqueRepository.deleteAll(historiques);
     }
     
     @Override
-    public Map<String, Long> getStatistiquesRecherche(Long userId) {
-        List<HistoriqueRecherche> historiques = getHistoriqueByUserId(userId);
+    public Map<String, Long> getSearchStatistics(Long userId) {
+        List<HistoriqueRecherche> historiques = getHistoryByUserId(userId);
         Map<String, Long> stats = new HashMap<>();
         
         stats.put("total", (long) historiques.size());
@@ -79,8 +79,8 @@ public class HistoriqueRechercheServiceImpl implements HistoriqueRechercheServic
     }
     
     @Override
-    public List<String> getTermesFrequents(Long userId, int limite) {
-        List<HistoriqueRecherche> historiques = getHistoriqueByUserId(userId);
+    public List<String> getFrequentTerms(Long userId, int limite) {
+        List<HistoriqueRecherche> historiques = getHistoryByUserId(userId);
         
         return historiques.stream()
             .collect(Collectors.groupingBy(
@@ -95,7 +95,7 @@ public class HistoriqueRechercheServiceImpl implements HistoriqueRechercheServic
     }
     
     @Override
-    public Double getTauxRecherchesFructueuses(Long userId) {
+    public Double getSuccessfulSearchRate(Long userId) {
         long total = historiqueRepository.countByUserId(userId);
         if (total == 0) return 0.0;
         
@@ -104,18 +104,18 @@ public class HistoriqueRechercheServiceImpl implements HistoriqueRechercheServic
     }
     
     @Override
-    public List<HistoriqueRecherche> getRecherchesPeriode(Long userId, LocalDateTime debut, LocalDateTime fin) {
+    public List<HistoriqueRecherche> getSearchesByPeriod(Long userId, LocalDateTime debut, LocalDateTime fin) {
         return historiqueRepository.findByUserIdAndDateRechercheBetween(userId, debut, fin);
     }
     
     @Override
-    public List<String> getSuggestionsRecherche(Long userId) {
-        List<String> termesFrequents = getTermesFrequents(userId, 5);
+    public List<String> getSearchSuggestions(Long userId) {
+        List<String> termesFrequents = getFrequentTerms(userId, 5);
         List<String> suggestions = new ArrayList<>(termesFrequents);
         
         // Ajouter des suggestions basées sur les termes similaires
         for (String terme : termesFrequents) {
-            List<HistoriqueRecherche> similaires = getRecherchesSimilaires(terme);
+            List<HistoriqueRecherche> similaires = getSimilarSearches(terme);
             suggestions.addAll(similaires.stream()
                 .map(HistoriqueRecherche::getTerme)
                 .filter(t -> !suggestions.contains(t))
@@ -127,7 +127,7 @@ public class HistoriqueRechercheServiceImpl implements HistoriqueRechercheServic
     }
     
     @Override
-    public List<String> getTermesTendance() {
+    public List<String> getTrendingTerms() {
         LocalDateTime uneSemaineAgo = LocalDateTime.now().minusDays(7);
         List<HistoriqueRecherche> recherchesRecentes = 
             historiqueRepository.findAllByDateRechercheAfter(uneSemaineAgo);
@@ -145,7 +145,7 @@ public class HistoriqueRechercheServiceImpl implements HistoriqueRechercheServic
     }
     
     @Override
-    public void nettoyerAnciennesRecherches(int joursRetention) {
+    public void cleanOldSearches(int joursRetention) {
         LocalDateTime dateLimit = LocalDateTime.now().minusDays(joursRetention);
         historiqueRepository.deleteByDateRechercheBefore(dateLimit);
     }
