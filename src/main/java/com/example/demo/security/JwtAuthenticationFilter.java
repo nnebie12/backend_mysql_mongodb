@@ -11,11 +11,23 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
+
+    // Liste des endpoints à ignorer (publics)
+    private final List<String> publicEndpoints = Arrays.asList(
+        "/v3/api-docs",
+        "/swagger-ui",
+        "/swagger-resources",
+        "/webjars",
+        "/api/v1/auth",
+        "/configuration"
+    );
 
     public JwtAuthenticationFilter(JwtUtil jwtUtil, CustomUserDetailsService userDetailsService) {
         this.jwtUtil = jwtUtil;
@@ -23,30 +35,42 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, 
-                                  FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
         
+        String path = request.getRequestURI();
+        
+        // Ignorer les endpoints publics - IMPORTANT !
+        if (isPublicEndpoint(path)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String authHeader = request.getHeader("Authorization");
         String token = null;
         String email = null;
+        String role = null;
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
             try {
                 email = jwtUtil.extractEmail(token);
-                // Ajouter userId dans la requête pour les contrôleurs
                 Long userId = jwtUtil.extractUserId(token);
+                role = jwtUtil.extractRole(token);
+                
                 request.setAttribute("userId", userId);
+                request.setAttribute("email", email);
+                request.setAttribute("role", role);
             } catch (Exception e) {
-                // Token invalide, on continue sans authentification
+                // Log l'erreur si nécessaire, mais ne pas bloquer
+                System.err.println("Erreur lors de l'extraction du JWT: " + e.getMessage());
             }
         }
 
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-
-            if (jwtUtil.validateToken(token)) {
-                UsernamePasswordAuthenticationToken authToken = 
+            if (token != null && jwtUtil.validateToken(token) && userDetails != null) {
+                UsernamePasswordAuthenticationToken authToken =
                     new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities());
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
@@ -55,5 +79,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Vérifie si le chemin correspond à un endpoint public
+     */
+    private boolean isPublicEndpoint(String path) {
+        return publicEndpoints.stream().anyMatch(path::startsWith) || 
+               path.equals("/") || 
+               path.equals("/favicon.ico");
     }
 }

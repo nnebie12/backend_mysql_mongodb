@@ -1,3 +1,4 @@
+
 package com.example.demo.security;
 
 import com.example.demo.entitiesMysql.UserEntity;
@@ -10,6 +11,8 @@ import java.util.Collections;
 
 public class CustomUserDetails implements UserDetails {
 
+    private static final long serialVersionUID = 1L; 
+
     private final UserEntity userEntity;
 
     public CustomUserDetails(UserEntity userEntity) {
@@ -18,9 +21,7 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.singletonList(
-            new SimpleGrantedAuthority("ROLE_" + userEntity.getRole())
-        );
+        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + userEntity.getRole()));
     }
 
     @Override
@@ -35,25 +36,29 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isAccountNonExpired() {
-        return true;
+        return true; 
     }
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        return true; 
     }
 
     @Override
     public boolean isCredentialsNonExpired() {
-        return true;
+        return true; 
     }
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return true; 
     }
 
-    public UserEntity getUserEntity() {
-        return userEntity;
+    public Long getId() {
+        return userEntity.getId();
+    }
+
+    public String getRole() {
+        return userEntity.getRole();
     }
 }

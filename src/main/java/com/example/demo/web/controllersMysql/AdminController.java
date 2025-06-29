@@ -2,61 +2,86 @@ package com.example.demo.web.controllersMysql;
 
 import com.example.demo.entitiesMysql.RecetteEntity;
 import com.example.demo.entitiesMysql.UserEntity;
-import com.example.demo.security.JwtUtil;
 import com.example.demo.servicesMysql.RecetteService;
 import com.example.demo.servicesMysql.UserService;
+
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/admin")
 public class AdminController {
-
+    
     private final UserService userService;
     private final RecetteService recetteService;
-    private final JwtUtil jwtUtil;
-
-    public AdminController(UserService userService, RecetteService recetteService, JwtUtil jwtUtil) {
+    
+    public AdminController(UserService userService, RecetteService recetteService) {
         this.userService = userService;
         this.recetteService = recetteService;
-        this.jwtUtil = jwtUtil;
     }
-
+    
     @GetMapping("/users")
-    public ResponseEntity<?> getAllUtilisateurs(@RequestHeader("Authorization") String tokenHeader) {
-        String token = tokenHeader.replace("Bearer ", "");
-        String role = jwtUtil.extractRole(token);
-
-        if (!"ADMIN".equals(role)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Accès interdit");
-        }
-
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<UserEntity>> getAllUtilisateurs() {
         return ResponseEntity.ok(userService.getAllUsers());
     }
-
+    
     @PutMapping("/users/{id}")
-    public UserEntity updateUtilisateur(@PathVariable Long id, @RequestBody UserEntity updatedUser) {
-        return userService.updateUser(id, updatedUser);
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserEntity> updateUtilisateur(@PathVariable Long id, @RequestBody UserEntity updatedUser) {
+        try {
+            UserEntity user = userService.updateUser(id, updatedUser);
+            return ResponseEntity.ok(user);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
-
+    
     @DeleteMapping("/users/{id}")
-    public void deleteUtilisateur(@PathVariable Long id) {
-        userService.deleteUser(id);
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteUtilisateur(@PathVariable Long id) {
+        try {
+            userService.deleteUser(id);
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
-
+    
     @PostMapping("/recettes")
-    public RecetteEntity createRecette(@RequestBody RecetteEntity recette) {
-        throw new UnsupportedOperationException("Ajout recette sans userId non pris en charge");
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<RecetteEntity> createRecette(@RequestBody RecetteEntity recetteEntity, @PathVariable Long userId) {
+        try {
+            RecetteEntity savedRecette = recetteService.saveRecette(recetteEntity, userId);
+            return ResponseEntity.status(HttpStatus.CREATED).body(savedRecette);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
-
+    
     @PutMapping("/recettes/{id}")
-    public RecetteEntity updateRecette(@PathVariable Long id, @RequestBody RecetteEntity recette) {
-        return recetteService.updateRecette(id, recette);
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<RecetteEntity> updateRecette(@PathVariable Long id, @RequestBody RecetteEntity recette) {
+        try {
+            RecetteEntity updatedRecette = recetteService.updateRecette(id, recette);
+            return ResponseEntity.ok(updatedRecette);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
-
+    
     @DeleteMapping("/recettes/{id}")
-    public void deleteRecette(@PathVariable Long id) {
-        recetteService.deleteRecette(id);
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteRecette(@PathVariable Long id) {
+        try {
+            recetteService.deleteRecette(id);
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }

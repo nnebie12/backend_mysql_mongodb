@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.demo.entiesMongodb.NoteDocument;
 import com.example.demo.servicesMongoDB.NoteService;
 
-import io.swagger.v3.oas.annotations.Operation;
 
 @RestController
 @RequestMapping("/api/v1/notes")
@@ -25,12 +24,6 @@ public class NoteController {
 
     @Autowired
     private NoteService noteService;
-    
-    @GetMapping("/test")
-    @Operation(summary = "Tester l'API", description = "Retourne un message de test")
-    public String test() {
-        return "Note API Functional ok";
-    }
     
     @GetMapping("/all")
     public ResponseEntity<List<NoteDocument>> getAllNotes() {

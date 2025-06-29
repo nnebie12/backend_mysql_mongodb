@@ -39,7 +39,6 @@ public class AuthService {
                 );
             }
         }
-
         throw new RuntimeException("Email ou mot de passe incorrect");
     }
 
@@ -57,7 +56,7 @@ public class AuthService {
 
     public UserEntity registerUser(UserEntity user) {
         if (userService.getUserByEmail(user.getEmail()).isPresent()) {
-            throw new RuntimeException("Cet email est déjà utilisé");
+            throw new IllegalArgumentException("Cet email est déjà utilisé");
         }
 
         if (user.getRole() == null || user.getRole().isEmpty()) {
@@ -67,7 +66,7 @@ public class AuthService {
         user.setMotDePasse(passwordEncoder.encode(user.getMotDePasse()));
         return userService.saveUser(user);
     }
-    
+
     public String getEmailFromToken(String token) {
         return jwtUtil.extractEmail(token);
     }

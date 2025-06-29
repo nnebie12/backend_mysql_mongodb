@@ -51,7 +51,7 @@ public class AuthControllerIntegrationTest {
     @Test
     public void testRegisterWithExistingEmail_conflict() throws Exception {
         UserEntity existing = new UserEntity(null, "Test", "User", "duplicate@example.com", "pass", "Vegan", "USER", null);
-        userRepository.save(existing);
+        existing = userRepository.save(existing); 
 
         UserEntity newUser = new UserEntity(null, "New", "User", "duplicate@example.com", "pass", "Vegan", "USER", null);
 

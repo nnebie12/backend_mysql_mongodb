@@ -19,7 +19,7 @@ RUN mvn clean package -DskipTests && \
 # Utiliser une image de base disponible au lieu de eclipse-temurin:17-jre-alpine
 FROM eclipse-temurin:17-jre
 WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
+COPY --from=build /app/target/RECETTE-0.0.1-SNAPSHOT.jar app.jar
 EXPOSE 8080
 
 # Options JVM pour optimiser l'utilisation de la mémoire

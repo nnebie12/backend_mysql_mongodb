@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.demo.entiesMongodb.CommentaireDocument;
 import com.example.demo.servicesMongoDB.CommentaireService;
 
-import io.swagger.v3.oas.annotations.Operation;
 
 @RestController
 @RequestMapping("/api/v1/commentaires")
@@ -25,12 +24,6 @@ public class CommentaireController {
 
     @Autowired
     private CommentaireService commentaireService;
-    
-    @GetMapping("/test")
-    @Operation(summary = "Tester l'API", description = "Retourne un message de test")
-    public String test() {
-        return "Commentaire API Functional ok";
-    }
     
     @GetMapping("/all")
     public ResponseEntity<List<CommentaireDocument>> getAllCommentaires() {
