@@ -3,7 +3,7 @@ package com.example.demo.web.controllersMysql;
 import com.example.demo.DTO.AuthRequest;
 import com.example.demo.DTO.AuthResponse;
 import com.example.demo.entitiesMysql.UserEntity;
-import com.example.demo.security.CustomUserDetails; // Assurez-vous d'importer
+import com.example.demo.security.CustomUserDetails; 
 import com.example.demo.servicesMysql.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -13,7 +13,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -34,7 +33,7 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Email ou mot de passe incorrect");
         }
     }
-
+    
     @PostMapping("/register")
     public ResponseEntity<UserEntity> register(@RequestBody @Valid UserEntity user) {
         try {

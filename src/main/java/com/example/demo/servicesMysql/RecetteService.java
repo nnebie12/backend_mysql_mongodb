@@ -10,6 +10,8 @@ import com.example.demo.entitiesMysql.RecetteEntity;
 import com.example.demo.entitiesMysql.RecetteIngredientEntity;
 
 public interface RecetteService {
+
+	RecetteEntity saveRecette(RecetteEntity recetteEntity, Long userId);
     Optional<RecetteEntity> getRecetteById(Long id);
     RecetteEntity updateRecette(Long id, RecetteEntity recetteDetails);
     List<RecetteEntity> getRecettesByUser(Long userId);
@@ -27,5 +29,4 @@ public interface RecetteService {
     void addIngredientToRecette(Long recetteId, Long ingredientId, String quantite);
     void removeIngredientFromRecette(Long recetteId, Long ingredientId);
     List<RecetteIngredientEntity> getRecetteIngredients(Long recetteId);
-	RecetteEntity saveRecette(RecetteEntity recetteEntity, Long userId);
     }

@@ -34,7 +34,7 @@ public class AdminController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserEntity> updateUtilisateur(@PathVariable Long id, @RequestBody UserEntity updatedUser) {
         try {
-            UserEntity user = userService.updateUser(id, updatedUser);
+            UserEntity user = userService.updateUserAsAdmin(id, updatedUser);
             return ResponseEntity.ok(user);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
@@ -85,3 +85,4 @@ public class AdminController {
         }
     }
 }
+

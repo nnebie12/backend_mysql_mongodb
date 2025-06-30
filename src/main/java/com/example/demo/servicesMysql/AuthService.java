@@ -39,6 +39,7 @@ public class AuthService {
                 );
             }
         }
+
         throw new RuntimeException("Email ou mot de passe incorrect");
     }
 
@@ -66,7 +67,6 @@ public class AuthService {
         user.setMotDePasse(passwordEncoder.encode(user.getMotDePasse()));
         return userService.saveUser(user);
     }
-
     public String getEmailFromToken(String token) {
         return jwtUtil.extractEmail(token);
     }

@@ -1,4 +1,3 @@
-
 package com.example.demo.security;
 
 import com.example.demo.entitiesMysql.UserEntity;
@@ -21,7 +20,9 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + userEntity.getRole()));
+        return Collections.singletonList(
+            new SimpleGrantedAuthority("ROLE_" + userEntity.getRole())
+        );
     }
 
     @Override
@@ -36,17 +37,20 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isAccountNonExpired() {
-        return true; 
+
+        return true;
     }
 
     @Override
     public boolean isAccountNonLocked() {
-        return true; 
+
+        return true;
     }
 
     @Override
     public boolean isCredentialsNonExpired() {
-        return true; 
+
+        return true;
     }
 
     @Override
@@ -60,5 +64,10 @@ public class CustomUserDetails implements UserDetails {
 
     public String getRole() {
         return userEntity.getRole();
+
+    }
+
+    public UserEntity getUserEntity() {
+        return userEntity;
     }
 }

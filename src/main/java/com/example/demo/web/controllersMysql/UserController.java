@@ -3,7 +3,7 @@ package com.example.demo.web.controllersMysql;
 import com.example.demo.entitiesMysql.UserEntity;
 import com.example.demo.exception.UserNotFoundException;
 import com.example.demo.servicesMysql.UserService;
-import com.example.demo.security.CustomUserDetails; // Assurez-vous d'importer
+import com.example.demo.security.CustomUserDetails; 
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -62,15 +62,15 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN') or (isAuthenticated() and #id == authentication.principal.id)")
     public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody UserEntity userDetails) {
         try {
-            UserEntity updatedUser = userService.updateUser(id, userDetails);
+            UserEntity updatedUser = userService.updateUserAsAdmin(id, userDetails);
             return ResponseEntity.ok(updatedUser);
         } catch (UserNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage()); 
         } catch (DataIntegrityViolationException e) {
              return ResponseEntity.status(HttpStatus.CONFLICT).body("Conflict during update: " + e.getMessage()); 
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage()); 
-        }
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }            
     }
 
     @DeleteMapping("/{id}")

@@ -19,7 +19,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
 
-    // Liste des endpoints à ignorer (publics)
     private final List<String> publicEndpoints = Arrays.asList(
         "/v3/api-docs",
         "/swagger-ui",
@@ -40,7 +39,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         
         String path = request.getRequestURI();
         
-        // Ignorer les endpoints publics - IMPORTANT !
         if (isPublicEndpoint(path)) {
             filterChain.doFilter(request, response);
             return;
@@ -62,8 +60,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 request.setAttribute("email", email);
                 request.setAttribute("role", role);
             } catch (Exception e) {
-                // Log l'erreur si nécessaire, mais ne pas bloquer
-                System.err.println("Erreur lors de l'extraction du JWT: " + e.getMessage());
+              
             }
         }
 
@@ -81,9 +78,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    /**
-     * Vérifie si le chemin correspond à un endpoint public
-     */
     private boolean isPublicEndpoint(String path) {
         return publicEndpoints.stream().anyMatch(path::startsWith) || 
                path.equals("/") || 

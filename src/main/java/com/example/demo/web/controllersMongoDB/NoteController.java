@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.demo.entiesMongodb.NoteDocument;
 import com.example.demo.servicesMongoDB.NoteService;
 
-
 @RestController
 @RequestMapping("/api/v1/notes")
 public class NoteController {

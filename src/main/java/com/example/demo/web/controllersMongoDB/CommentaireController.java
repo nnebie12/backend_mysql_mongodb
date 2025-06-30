@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.demo.entiesMongodb.CommentaireDocument;
 import com.example.demo.servicesMongoDB.CommentaireService;
 
-
 @RestController
 @RequestMapping("/api/v1/commentaires")
 public class CommentaireController {

@@ -52,6 +52,7 @@ public class AuthControllerIntegrationTest {
     public void testRegisterWithExistingEmail_conflict() throws Exception {
         UserEntity existing = new UserEntity(null, "Test", "User", "duplicate@example.com", "pass", "Vegan", "USER", null);
         existing = userRepository.save(existing); 
+        userRepository.save(existing);
 
         UserEntity newUser = new UserEntity(null, "New", "User", "duplicate@example.com", "pass", "Vegan", "USER", null);
 
@@ -59,5 +60,6 @@ public class AuthControllerIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(newUser)))
                 .andExpect(status().isConflict());
-    }
+    
+}
 }
