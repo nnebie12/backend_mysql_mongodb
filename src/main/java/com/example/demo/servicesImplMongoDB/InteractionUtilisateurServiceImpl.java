@@ -3,6 +3,10 @@ package com.example.demo.servicesImplMongoDB;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import com.example.demo.entiesMongodb.InteractionUtilisateur;
@@ -46,7 +50,16 @@ public class InteractionUtilisateurServiceImpl implements InteractionUtilisateur
     }
     
     @Override
+    @PreAuthorize("hasRole('ADMIN')")
     public void deleteInteractionsUtilisateur(Long userId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        boolean isAdmin = authentication.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")); 
+
+        if (!isAdmin) {
+            throw new AccessDeniedException("Seul un administrateur peut supprimer des interactions d'utilisateurs.");
+        }
         interactionRepository.deleteByUserId(userId);
     }
 }
