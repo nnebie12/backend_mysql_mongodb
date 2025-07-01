@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import com.example.demo.entiesMongodb.RecetteInteraction;
@@ -21,6 +22,7 @@ public class RecetteInteractionServiceImpl implements RecetteInteractionService 
     private RecetteInteractionRepository repository;
     
     @Override
+    @PreAuthorize("hasRole('ADMINISTRATEUR')")
     public RecetteInteraction save(RecetteInteraction interaction) {
         return repository.save(interaction);
     }
@@ -119,6 +121,7 @@ public class RecetteInteractionServiceImpl implements RecetteInteractionService 
     }
     
     @Override
+    @PreAuthorize("hasRole('ADMINISTRATEUR')")
     public RecetteInteraction marquerComptabilisee(String id) {
         Optional<RecetteInteraction> optInteraction = repository.findById(id);
         if (optInteraction.isPresent()) {
@@ -135,6 +138,7 @@ public class RecetteInteractionServiceImpl implements RecetteInteractionService 
     }
     
     @Override
+    @PreAuthorize("hasRole('ADMININISTRATEUR')")
     public void supprimerInteraction(String id) {
         repository.deleteById(id);
     }

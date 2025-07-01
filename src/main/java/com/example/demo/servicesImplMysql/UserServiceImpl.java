@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Optional;
 
 
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -33,7 +32,6 @@ public class UserServiceImpl implements UserService {
     }
     
     @Override
-    @PreAuthorize("hasRole('ADMIN')")
     public List<UserEntity> getAllUsers() {
         return userRepository.findAll();
     }
@@ -49,13 +47,11 @@ public class UserServiceImpl implements UserService {
     }
     
     @Override
-    @PreAuthorize("hasRole('ADMIN')")
     public void deleteUser(Long id) {
         userRepository.deleteById(id);
     }
     
     @Override
-    @PreAuthorize("hasRole('ADMIN')")
     public UserEntity updateUserAsAdmin(Long id, UserEntity userDetails) {
         return updateUserAsAdmin(id, userDetails);
     }

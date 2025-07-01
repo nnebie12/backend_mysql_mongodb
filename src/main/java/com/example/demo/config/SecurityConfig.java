@@ -47,21 +47,17 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
-                // Autoriser l'authentification
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 
-                // Autoriser Swagger UI et API Docs - CORRIGÉ
                 .requestMatchers("/").permitAll()
                 .requestMatchers("/v3/api-docs", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/swagger-resources/**").permitAll()
                 .requestMatchers("/webjars/**").permitAll()
                 
-                // Autoriser les endpoints d'admin et users avec rôles
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
+                .requestMatchers("/api/admin/**").hasRole("ADMINISTRATEUR")
+                .requestMatchers("/api/v1/users/**").hasRole("ADMINISTRATEUR")
                 
-                // Toutes les autres requêtes nécessitent une authentification
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);

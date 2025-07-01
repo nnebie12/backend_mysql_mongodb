@@ -16,16 +16,17 @@ import java.util.List;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
 
     private final List<String> publicEndpoints = Arrays.asList(
-        "/v3/api-docs",
-        "/swagger-ui",
-        "/swagger-resources",
-        "/webjars",
-        "/api/v1/auth",
-        "/configuration"
+            "/v3/api-docs",
+            "/swagger-ui",
+            "/swagger-resources",
+            "/webjars",
+            "/api/v1/auth",
+            "/configuration"
     );
 
     public JwtAuthenticationFilter(JwtUtil jwtUtil, CustomUserDetailsService userDetailsService) {
@@ -36,9 +37,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        
+
         String path = request.getRequestURI();
-        
+
         if (isPublicEndpoint(path)) {
             filterChain.doFilter(request, response);
             return;
@@ -49,18 +50,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String email = null;
         String role = null;
 
+
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
             try {
                 email = jwtUtil.extractEmail(token);
                 Long userId = jwtUtil.extractUserId(token);
                 role = jwtUtil.extractRole(token);
-                
+
                 request.setAttribute("userId", userId);
                 request.setAttribute("email", email);
                 request.setAttribute("role", role);
             } catch (Exception e) {
-              
+               
             }
         }
 
@@ -68,19 +70,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
             if (token != null && jwtUtil.validateToken(token) && userDetails != null) {
                 UsernamePasswordAuthenticationToken authToken =
-                    new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
+                        new UsernamePasswordAuthenticationToken(
+                                userDetails, null, userDetails.getAuthorities());
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+            } else {
             }
+        } else if (email == null) {
+        } else {
         }
 
         filterChain.doFilter(request, response);
     }
 
     private boolean isPublicEndpoint(String path) {
-        return publicEndpoints.stream().anyMatch(path::startsWith) || 
-               path.equals("/") || 
-               path.equals("/favicon.ico");
+        return publicEndpoints.stream().anyMatch(path::startsWith) ||
+                path.equals("/") ||
+                path.equals("/favicon.ico");
     }
 }

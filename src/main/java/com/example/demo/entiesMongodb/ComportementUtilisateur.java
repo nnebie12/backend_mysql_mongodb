@@ -83,16 +83,16 @@ public class ComportementUtilisateur {
     @AllArgsConstructor
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class HabitudesNavigation {
-        private Map<String, Integer> pagesVisitees; // page -> nombre de visites
-        private Map<String, Long> tempsParPage; // page -> temps en secondes
+        private Map<String, Integer> pagesVisitees; 
+        private Map<String, Long> tempsParPage; 
         private List<String> recherchesFavorites;
         private String typeRecettePreferee;
         private Integer nombreConnexionsParJour;
         private List<String> heuresConnexionHabituelles;
         
         // Patterns de navigation
-        private Map<String, String> parcoursFavoris; // séquences de pages visitées
-        private Double tempsMoyenParSession; // en minutes
+        private Map<String, String> parcoursFavoris; 
+        private Double tempsMoyenParSession; 
         private Integer nombrePagesParSession;
         
         // Préférences de contenu

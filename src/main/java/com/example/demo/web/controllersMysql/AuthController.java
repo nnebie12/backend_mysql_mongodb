@@ -63,7 +63,6 @@ public class AuthController {
     }
 
     @PostMapping("/validate")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> validateToken() {
         return ResponseEntity.ok("Token valide");
     }

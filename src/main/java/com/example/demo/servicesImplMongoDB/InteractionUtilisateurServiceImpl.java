@@ -50,7 +50,7 @@ public class InteractionUtilisateurServiceImpl implements InteractionUtilisateur
     }
     
     @Override
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMINISTRATEUR')")
     public void deleteInteractionsUtilisateur(Long userId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 

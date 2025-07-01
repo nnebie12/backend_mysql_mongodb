@@ -4,6 +4,8 @@ import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import com.example.demo.DTO.AnalysePatternsDTO;
@@ -22,12 +24,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     private final ComportementUtilisateurRepository comportementRepository;
     private final InteractionUtilisateurService interactionService;
     private final HistoriqueRechercheService historiqueRechercheService;
-    // Ajoutez ces services selon votre architecture
-    // private final FavorisService favorisService;
-    // private final NoteService noteService;
-    // private final CommentaireService commentaireService;
-
-    // Constantes pour les seuils
+    
     private static final int MAX_HISTORIQUE_RECHERCHES = 500;
     private static final int MAX_HISTORIQUE_INTERACTIONS = 1000;
     private static final double SCORE_ENGAGEMENT_FIDELE = 70.0;
@@ -43,6 +40,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMINISTRATEUR')")
     public ComportementUtilisateur createBehavior(Long userId) {
         ComportementUtilisateur comportement = new ComportementUtilisateur();
         comportement.setUserId(userId);
@@ -51,7 +49,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
         comportement.setHistoriqueInteractionsIds(new ArrayList<>());
         comportement.setHistoriqueRecherchesIds(new ArrayList<>());
 
-        // Initialiser les métriques
+        // Initialisation des métriques
         ComportementUtilisateur.MetriquesComportementales metriques =
             new ComportementUtilisateur.MetriquesComportementales();
         metriques.setNombreFavorisTotal(0);
@@ -65,11 +63,13 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMINISTRATEUR') or (#userId == authentication.principal.id)")
     public Optional<ComportementUtilisateur> getBehaviorByUserId(Long userId) {
         return comportementRepository.findByUserId(userId);
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMINISTRATEUR') or (#userId == authentication.principal.id)")
     public ComportementUtilisateur getOrCreateBehavior(Long userId) {
         return getBehaviorByUserId(userId)
             .orElseGet(() -> createBehavior(userId));
@@ -82,6 +82,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMINISTRATEUR')")
     public void updateMetrics(Long userId) {
         ComportementUtilisateur comportement = getOrCreateBehavior(userId);
         ComportementUtilisateur.MetriquesComportementales metriques =
@@ -92,19 +93,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
         // Récupérer les données des services existants
         List<InteractionUtilisateur> interactions = interactionService.getInteractionsByUserId(userId);
         List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoryByUserId(userId);
-
-        // Vous pouvez décommenter ces lignes selon vos services disponibles
-        // List<Favoris> favoris = favorisService.getFavorisByUserId(userId);
-        // List<Note> notes = noteService.getNotesByUserId(userId);
-        // List<Commentaire> commentaires = commentaireService.getCommentairesByUserId(userId);
-
-        // Calculer les métriques depuis vos entités
-        // metriques.setNombreFavorisTotal(favoris.size());
-        // metriques.setNoteMoyenneDonnee(notes.stream()
-        //     .mapToDouble(Note::getValeur)
-        //     .average()
-        //     .orElse(0.0));
-        // metriques.setNombreCommentairesLaisses(commentaires.size());
 
         // Métriques de recherche
         metriques.setNombreRecherchesTotales(recherches.size());
@@ -154,16 +142,13 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMINISTRATEUR') or (#userId == authentication.principal.id)")
     public ComportementUtilisateur recordSearch(Long userId, String terme,
                                                        List<HistoriqueRecherche.Filtre> filtres,
                                                        Integer nombreResultats,
                                                        Boolean rechercheFructueuse) {
         // Utiliser votre service existant pour créer l'historique
         HistoriqueRecherche nouvelleRecherche = historiqueRechercheService.recordSearch(userId, terme, filtres);
-
-        // Si vous avez enrichi votre service avec la méthode complète
-        // HistoriqueRecherche nouvelleRecherche = historiqueRechercheService.enregistrerRechercheComplete(
-        //     userId, terme, filtres, nombreResultats, rechercheFructueuse);
 
         // Mettre à jour le comportement utilisateur
         ComportementUtilisateur comportement = getOrCreateBehavior(userId);
@@ -185,9 +170,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     @Override
     public ComportementUtilisateur enregistrerInteraction(Long userId, String typeInteraction,
                                                          String entiteInteraction, String detailsInteraction) {
-        // Utiliser votre service existant avec des valeurs par défaut
-        // Vous pouvez adapter cette logique selon vos besoins métier
-        InteractionUtilisateur nouvelleInteraction = interactionService.addInteractionUtilisateur(
+               InteractionUtilisateur nouvelleInteraction = interactionService.addInteractionUtilisateur(
             userId, typeInteraction, null, null);
 
         // Mettre à jour le comportement utilisateur
@@ -230,6 +213,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMINISTRATEUR') or (#userId == authentication.principal.id)")
     public List<String> getFrequentSearchTerms(Long userId) {
         List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoryByUserId(userId);
 
@@ -246,16 +230,19 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMINISTRATEUR')")
     public List<ComportementUtilisateur> getUsersByProfile(String profil) {
         return comportementRepository.findByMetriques_ProfilUtilisateur(profil);
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMINISTRATEUR')")
     public List<ComportementUtilisateur> getEngagedUsers(Double scoreMinimum) {
         return comportementRepository.findByMetriques_ScoreEngagementGreaterThan(scoreMinimum);
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMINISTRATEUR')")
     public void deleteUserBehavior(Long userId) {
         comportementRepository.deleteByUserId(userId);
     }
@@ -276,11 +263,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             .count();
         score += recherchesFructueuses * 0.1;
 
-        // Vous pouvez ajouter d'autres critères selon vos besoins
-        // score += favoris.size() * 2.0;
-        // score += notes.size() * 1.5;
-        // score += commentaires.size() * 3.0;
-
         // Normaliser le score (0-100)
         return Math.min(100.0, score);
     }
@@ -295,6 +277,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMINISTRATEUR')")
     public Map<String, Object> obtenirStatistiquesComportement(Long userId) {
         ComportementUtilisateur comportement = getOrCreateBehavior(userId);
         Map<String, Object> statistiques = new HashMap<>();
@@ -913,9 +896,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             anomalies.add("Activité significative détectée en dehors des heures normales (nuit).");
         }
 
-        // Anomalie 3: Terme de recherche totalement nouveau et potentiellement sensible (dépend du contexte métier)
-        // Ceci est un placeholder, nécessiterait une base de données de termes "normaux" ou une analyse NLP
-        // Exemple très simple : si le terme de recherche n'est pas dans les termes fréquents et contient certains mots-clés
+        
         List<String> termesFrequents = comportement.getMetriques() != null ? comportement.getMetriques().getTermesRechercheFrequents() : new ArrayList<>();
         Optional<HistoriqueRecherche> derniereRecherche = recherches.stream()
             .max(Comparator.comparing(HistoriqueRecherche::getDateRecherche));

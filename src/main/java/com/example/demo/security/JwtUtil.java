@@ -6,23 +6,30 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.util.Base64; // <--- AJOUTEZ CETTE IMPORTATION
 import java.util.Date;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Component
 public class JwtUtil {
 
+    private static final Logger logger = LoggerFactory.getLogger(JwtUtil.class);
+
     @Value("${jwt.secret}")
     private String secret;
 
-    @Value("${jwt.expiration:86400000}") 
+    @Value("${jwt.expiration:86400000}")
     private Long expiration;
 
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes());
+        byte[] decodedKey = Base64.getDecoder().decode(secret);
+        return Keys.hmacShaKeyFor(decodedKey);
     }
 
     public String generateToken(String email, Long userId, String role) {
-        return Jwts.builder()
+        String token = Jwts.builder()
                 .setSubject(email)
                 .claim("userId", userId)
                 .claim("role", role)
@@ -30,6 +37,7 @@ public class JwtUtil {
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
+        return token;
     }
 
     public String extractEmail(String token) {
@@ -63,7 +71,8 @@ public class JwtUtil {
     public Boolean validateToken(String token) {
         try {
             Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token);
-            return !isTokenExpired(token);
+            boolean expired = isTokenExpired(token);
+            return !expired;
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }

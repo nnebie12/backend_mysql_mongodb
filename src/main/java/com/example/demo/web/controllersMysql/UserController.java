@@ -27,13 +27,13 @@ public class UserController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMINISTRATEUR')")
     public ResponseEntity<List<UserEntity>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or (isAuthenticated() and #id == authentication.principal.id)")
+    @PreAuthorize("hasRole('ADMINISTRATEUR') or (isAuthenticated() and #id == authentication.principal.id)")
     public ResponseEntity<?> getUserById(@PathVariable Long id) {
         Optional<UserEntity> user = userService.getUserById(id);
         return user.map(ResponseEntity::ok)
@@ -59,7 +59,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or (isAuthenticated() and #id == authentication.principal.id)")
+    @PreAuthorize("hasRole('ADMINISTRATEUR') or (isAuthenticated() and #id == authentication.principal.id)")
     public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody UserEntity userDetails) {
         try {
             UserEntity updatedUser = userService.updateUserAsAdmin(id, userDetails);
@@ -74,7 +74,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMINISTRATEUR')")
     public ResponseEntity<?> deleteUser(@PathVariable Long id) {
         try {
             userService.deleteUser(id);
