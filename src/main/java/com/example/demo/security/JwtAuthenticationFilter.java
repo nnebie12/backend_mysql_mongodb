@@ -8,14 +8,14 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
+@Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-
 
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
@@ -25,8 +25,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/swagger-ui",
             "/swagger-resources",
             "/webjars",
-            "/api/v1/auth",
-            "/configuration"
+            "/configuration",
+            "/api/v1/auth/login",
+            "/api/v1/auth/register"
     );
 
     public JwtAuthenticationFilter(JwtUtil jwtUtil, CustomUserDetailsService userDetailsService) {
@@ -50,7 +51,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String email = null;
         String role = null;
 
-
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
             try {
@@ -62,13 +62,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 request.setAttribute("email", email);
                 request.setAttribute("role", role);
             } catch (Exception e) {
-               
+                // Gérer l'exception (par exemple, jeton invalide ou expiré)
             }
         }
 
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-            if (token != null && jwtUtil.validateToken(token) && userDetails != null) {
+            UserDetails userDetails = null;
+            try {
+                userDetails = userDetailsService.loadUserByUsername(email);
+            } catch (Exception e) {
+            }
+
+            if (userDetails != null && jwtUtil.validateToken(token, userDetails)) {
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(
                                 userDetails, null, userDetails.getAuthorities());
@@ -76,8 +81,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             } else {
             }
-        } else if (email == null) {
-        } else {
         }
 
         filterChain.doFilter(request, response);

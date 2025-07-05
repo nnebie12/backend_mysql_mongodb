@@ -6,7 +6,6 @@ import com.example.demo.entitiesMysql.UserEntity;
 import com.example.demo.security.JwtUtil;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
 import java.util.Optional;
 
 @Service
@@ -22,12 +21,26 @@ public class AuthService {
         this.jwtUtil = jwtUtil;
     }
 
+    private String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02X", b));
+        }
+        return sb.toString();
+    }
+
     public AuthResponse authenticate(AuthRequest authRequest) {
         Optional<UserEntity> userOpt = userService.getUserByEmail(authRequest.getEmail());
 
         if (userOpt.isPresent()) {
             UserEntity user = userOpt.get();
-            if (passwordEncoder.matches(authRequest.getMotDePasse(), user.getMotDePasse())) {
+            
+            String plainPassword = authRequest.getMotDePasse();
+            String storedPasswordHash = user.getMotDePasse();
+
+            boolean passwordMatches = passwordEncoder.matches(plainPassword, storedPasswordHash);
+
+            if (passwordMatches) {
                 String token = jwtUtil.generateToken(user.getEmail(), user.getId(), user.getRole());
                 return new AuthResponse(
                         token,
@@ -39,7 +52,6 @@ public class AuthService {
                 );
             }
         }
-
         throw new RuntimeException("Email ou mot de passe incorrect");
     }
 
@@ -47,11 +59,11 @@ public class AuthService {
         return jwtUtil.validateToken(token);
     }
 
-    public Long getUserIdFromToken(String token) {
+    public Long extractUserId(String token) {
         return jwtUtil.extractUserId(token);
     }
 
-    public String getRoleFromToken(String token) {
+    public String extractRole(String token) {
         return jwtUtil.extractRole(token);
     }
 
@@ -59,14 +71,15 @@ public class AuthService {
         if (userService.getUserByEmail(user.getEmail()).isPresent()) {
             throw new IllegalArgumentException("Cet email est déjà utilisé");
         }
-
         if (user.getRole() == null || user.getRole().isEmpty()) {
             user.setRole("USER");
         }
+        String plainPassword = user.getMotDePasse();
+        user.setMotDePasse(passwordEncoder.encode(plainPassword));
 
-        user.setMotDePasse(passwordEncoder.encode(user.getMotDePasse()));
         return userService.saveUser(user);
     }
+
     public String getEmailFromToken(String token) {
         return jwtUtil.extractEmail(token);
     }

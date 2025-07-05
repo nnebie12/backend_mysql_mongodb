@@ -29,10 +29,13 @@ public class SecurityConfig {
 
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(@Lazy JwtUtil jwtUtil, @Lazy CustomUserDetailsService userDetailsService) {
+
+    public SecurityConfig(@Lazy JwtUtil jwtUtil, @Lazy CustomUserDetailsService userDetailsService, @Lazy JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtUtil = jwtUtil;
         this.userDetailsService = userDetailsService;
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
     @Bean
@@ -41,27 +44,23 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/api/v1/auth/**").permitAll()
-                
-                .requestMatchers("/").permitAll()
-                .requestMatchers("/v3/api-docs", "/v3/api-docs/**").permitAll()
-                .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
-                .requestMatchers("/swagger-resources/**").permitAll()
-                .requestMatchers("/webjars/**").permitAll()
-                
-                .requestMatchers("/api/admin/**").hasRole("ADMINISTRATEUR")
-                .requestMatchers("/api/v1/users/**").hasRole("ADMINISTRATEUR")
-                
+            .authorizeHttpRequests(authorize -> authorize
+                .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register",
+                		"/v3/api-docs/**",       
+                        "/swagger-ui/**",       
+                        "/swagger-resources/**", 
+                        "/webjars/**",          
+                        "/configuration/**").permitAll()
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
-            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
-       
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            )
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

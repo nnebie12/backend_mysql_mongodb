@@ -43,13 +43,13 @@ public class CommentaireServiceImpl implements CommentaireService {
 
 
     @Override
-    public Optional<CommentaireDocument> getCommentaireById(Long id) {
-        return commentaireRepository.findById(id.toString());
+    public Optional<CommentaireDocument> getCommentaireById(String id) { 
+        return commentaireRepository.findById(id); 
     }
 
     @Override
-    public CommentaireDocument updateCommentaire(Long id, CommentaireDocument commentaireEntity) {
-        Optional<CommentaireDocument> existingCommentaire = commentaireRepository.findById(id.toString());
+    public CommentaireDocument updateCommentaire(String id, CommentaireDocument commentaireEntity) { 
+        Optional<CommentaireDocument> existingCommentaire = commentaireRepository.findById(id); 
         
         if (existingCommentaire.isPresent()) {
             CommentaireDocument updatedCommentaire = existingCommentaire.get();
@@ -63,7 +63,7 @@ public class CommentaireServiceImpl implements CommentaireService {
     }
 
     @Override
-    public void deleteCommentaire(Long id) {
-        commentaireRepository.deleteById(id.toString());
+    public void deleteCommentaire(String id) { 
+        commentaireRepository.deleteById(id); 
     }
 }

@@ -11,7 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -43,7 +42,7 @@ public class PropositionRecommandationController {
         try {
             Optional<PropositionRecommandation> proposition = service.findById(id);
             return proposition.map(p -> new ResponseEntity<>(p, HttpStatus.OK))
-                             .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
+                               .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
         } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
@@ -145,30 +144,7 @@ public class PropositionRecommandationController {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-
     
-    @PostMapping
-    public ResponseEntity<PropositionRecommandation> createProposition(@RequestBody PropositionRecommandation proposition) {
-        try {
-            PropositionRecommandation savedProposition = service.save(proposition);
-            return new ResponseEntity<>(savedProposition, HttpStatus.CREATED);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-    
-    @PostMapping("/creer")
-    public ResponseEntity<PropositionRecommandation> createProposition(
-            @RequestParam Long idUser,
-            @RequestParam String idRecommandation,
-            @RequestParam(required = false) Integer priorite) {
-        try {
-            PropositionRecommandation proposition = service.createProposition(idUser, idRecommandation, priorite);
-            return new ResponseEntity<>(proposition, HttpStatus.CREATED);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
     
     @PutMapping("/{id}/accepter")
     public ResponseEntity<PropositionRecommandation> acceptProposition(

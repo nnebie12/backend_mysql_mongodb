@@ -37,14 +37,14 @@ public class CommentaireController {
     }
     
     @GetMapping("/{id}")
-    public ResponseEntity<CommentaireDocument> getCommentaireById(@PathVariable Long id) {
+    public ResponseEntity<CommentaireDocument> getCommentaireById(@PathVariable String id) { 
         return commentaireService.getCommentaireById(id)
                 .map(commentaire -> new ResponseEntity<>(commentaire, HttpStatus.OK))
                 .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
     
     @PutMapping("/{id}")
-    public ResponseEntity<CommentaireDocument> updateCommentaire(@PathVariable Long id, @RequestBody CommentaireDocument commentaireDetails) {
+    public ResponseEntity<CommentaireDocument> updateCommentaire(@PathVariable String id, @RequestBody CommentaireDocument commentaireDetails) { // Changement ici : Long -> String
         try {
             CommentaireDocument updatedCommentaire = commentaireService.updateCommentaire(id, commentaireDetails);
             return new ResponseEntity<>(updatedCommentaire, HttpStatus.OK);
@@ -54,7 +54,7 @@ public class CommentaireController {
     }
     
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCommentaire(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteCommentaire(@PathVariable String id) { 
         try {
             commentaireService.deleteCommentaire(id);
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);

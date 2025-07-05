@@ -10,7 +10,7 @@ public interface CommentaireService {
 
 	List<CommentaireDocument> getAllCommentaireEntity();
 	CommentaireDocument addCommentaireEntity(CommentaireDocument commentaireEntity);
-    Optional<CommentaireDocument> getCommentaireById(Long id);
-    CommentaireDocument updateCommentaire(Long id, CommentaireDocument commentaireEntity);
-    void deleteCommentaire(Long id);
+    Optional<CommentaireDocument> getCommentaireById(String id); 
+    CommentaireDocument updateCommentaire(String id, CommentaireDocument commentaireEntity);
+    void deleteCommentaire(String id); 
 }

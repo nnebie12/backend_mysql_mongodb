@@ -4,9 +4,10 @@ import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.security.core.userdetails.UserDetails; // Importation ajoutée
 
 import javax.crypto.SecretKey;
-import java.util.Base64; // <--- AJOUTEZ CETTE IMPORTATION
+import java.util.Base64;
 import java.util.Date;
 
 import org.slf4j.Logger;
@@ -74,7 +75,25 @@ public class JwtUtil {
             boolean expired = isTokenExpired(token);
             return !expired;
         } catch (JwtException | IllegalArgumentException e) {
+            logger.warn("Validation simple du jeton échouée : {}", e.getMessage());
             return false;
         }
+    }
+
+    /**
+     * Valide le jeton JWT en vérifiant l'expiration et la correspondance avec les détails de l'utilisateur.
+     * @param token Le jeton JWT à valider.
+     * @param userDetails Les détails de l'utilisateur contre lesquels valider le jeton.
+     * @return true si le jeton est valide pour l'utilisateur donné, false sinon.
+     */
+    public Boolean validateToken(String token, UserDetails userDetails) {
+        final String email = extractEmail(token);
+       
+        boolean isValid = (email.equals(userDetails.getUsername()) && !isTokenExpired(token));
+        if (!isValid) {
+            logger.warn("Validation complète du jeton échouée pour l'email {}. Email match: {}, Expired: {}",
+                email, email.equals(userDetails.getUsername()), isTokenExpired(token));
+        }
+        return isValid;
     }
 }

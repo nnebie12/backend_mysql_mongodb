@@ -142,6 +142,4 @@ public interface ComportementUtilisateurRepository extends MongoRepository<Compo
      * @param ingredient Nom de l'ingrédient
      * @return Liste des comportements correspondants
      */
-    // Cette méthode sera implémentée dans le service avec MongoTemplate si nécessaire
-    // List<ComportementUtilisateur> findByIngredientPreference(String ingredient);
 }

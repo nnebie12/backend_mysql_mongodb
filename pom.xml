@@ -143,6 +143,19 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-aop</artifactId>
 		</dependency>
+
+		<!-- Dépendance pour javax.xml.bind (DatatypeConverter) pour Java 11+ -->
+		<dependency>
+			<groupId>jakarta.xml.bind</groupId>
+			<artifactId>jakarta.xml.bind-api</artifactId>
+			<version>4.0.0</version>
+		</dependency>
+		<dependency>
+			<groupId>com.sun.xml.bind</groupId>
+			<artifactId>jaxb-impl</artifactId>
+			<version>4.0.0</version>
+			<scope>runtime</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
