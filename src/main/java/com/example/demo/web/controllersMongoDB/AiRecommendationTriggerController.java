@@ -24,7 +24,7 @@ public class AiRecommendationTriggerController {
      * @return La recommandation IA générée.
      */
     @PostMapping("/generate/personalized/{userId}")
-    @PreAuthorize("hasRole('ADMINISTRATEUR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<RecommandationIA> generatePersonalizedRecommendation(@PathVariable Long userId) {
         try {
             RecommandationIA recommendation = recommandationIAService.genererRecommandationPersonnalisee(userId);
@@ -42,7 +42,7 @@ public class AiRecommendationTriggerController {
      * @return La recommandation IA générée.
      */
     @PostMapping("/generate/seasonal/{userId}")
-    @PreAuthorize("hasRole('ADMINISTRATEUR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<RecommandationIA> generateSeasonalRecommendation(@PathVariable Long userId) {
         try {
             RecommandationIA recommendation = recommandationIAService.genererRecommandationSaisonniere(userId);
@@ -59,7 +59,7 @@ public class AiRecommendationTriggerController {
      * @return La recommandation IA générée.
      */
     @PostMapping("/generate/habit-based/{userId}")
-    @PreAuthorize("hasRole('ADMINISTRATEUR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<RecommandationIA> generateHabitBasedRecommendation(@PathVariable Long userId) {
         try {
             RecommandationIA recommendation = recommandationIAService.genererRecommandationHabitudes(userId);
@@ -76,7 +76,7 @@ public class AiRecommendationTriggerController {
      * @return La recommandation IA générée.
      */
     @PostMapping("/generate/timeslot/{userId}")
-    @PreAuthorize("hasRole('ADMINISTRATEUR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<RecommandationIA> generateTimeslotRecommendation(@PathVariable Long userId) {
         try {
             RecommandationIA recommendation = recommandationIAService.genererRecommandationCreneauActuel(userId);
@@ -93,7 +93,7 @@ public class AiRecommendationTriggerController {
      * @return La recommandation IA générée.
      */
     @PostMapping("/generate/engagement/{userId}")
-    @PreAuthorize("hasRole('ADMINISTRATEUR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<RecommandationIA> generateEngagementRecommendation(@PathVariable Long userId) {
         try {
             RecommandationIA recommendation = recommandationIAService.genererRecommandationEngagement(userId);
@@ -111,7 +111,7 @@ public class AiRecommendationTriggerController {
      * @return La recommandation IA générée.
      */
     @PostMapping("/generate/{userId}")
-    @PreAuthorize("hasRole('ADMINISTRATEUR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<RecommandationIA> generateRecommendationByType(
             @PathVariable Long userId,
             @RequestParam String type) {

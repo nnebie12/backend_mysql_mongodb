@@ -1,6 +1,8 @@
 package com.example.demo.controllerMysql;
 
 import com.example.demo.entitiesMysql.UserEntity;
+import com.example.demo.repositoryMysql.FavorisRepository;
+import com.example.demo.repositoryMysql.RecetteRepository;
 import com.example.demo.repositoryMysql.UserRepository;
 import com.example.demo.security.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,9 +13,12 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.jdbc.core.JdbcTemplate; 
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT) 
@@ -32,19 +37,38 @@ public class UserControllerIntegrationTest {
 
     @Autowired
     private UserRepository userRepository; 
+    @Autowired
+    private FavorisRepository favorisRepository;
+
+    @Autowired
+    private RecetteRepository recetteRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate; 
 
     private UserEntity adminUser;
     private UserEntity normalUser;
 
     @BeforeEach
     void setUp() {
-        userRepository.deleteAll();
+        jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS = 0");
 
-        adminUser = new UserEntity(null, "Admin", "User", "admin@test.com", "adminpass", null, "ADMIN", null);
+        // Nettoyer les tables dans l'ordre inverse des dépendances pour éviter les erreurs de clé étrangère
+        favorisRepository.deleteAllInBatch(); 
+        recetteRepository.deleteAllInBatch(); 
+        userRepository.deleteAllInBatch();  
+
+        jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS = 1");
+        
+
+        adminUser = new UserEntity(null, "Admin", "User", "admin@test.com", "adminpass", null, "ADMINISTRATEUR", null); 
         normalUser = new UserEntity(null, "Normal", "User", "user@test.com", "userpass", null, "USER", null);
 
         adminUser = userRepository.save(adminUser);
         normalUser = userRepository.save(normalUser);
+        
+        System.out.println("Admin user: " + adminUser);
+        System.out.println("Normal user: " + normalUser);
     }
 
     @Test
@@ -58,19 +82,26 @@ public class UserControllerIntegrationTest {
     @DisplayName("✅ Accès autorisé à /api/v1/users avec token valide (Admin)")
     void testGetAllUsersAsAdminWithValidToken() throws Exception {
         String adminToken = jwtUtil.generateToken(adminUser.getEmail(), adminUser.getId(), adminUser.getRole());
+        System.out.println("Admin token: " + adminToken);
 
-        mockMvc.perform(get("/api/v1/users")
+        MvcResult result = mockMvc.perform(get("/api/v1/users")
                 .header("Authorization", "Bearer " + adminToken))
-                .andExpect(status().isOk());
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andReturn();
+        
+        System.out.println("Response: " + result.getResponse().getContentAsString());
     }
 
     @Test
     @DisplayName("❌ Accès refusé à /api/v1/users pour un utilisateur simple (doit être 403 Forbidden)")
     void testGetAllUsersAsNormalUser_Forbidden() throws Exception {
         String normalUserToken = jwtUtil.generateToken(normalUser.getEmail(), normalUser.getId(), normalUser.getRole());
+        System.out.println("Normal user token: " + normalUserToken);
 
         mockMvc.perform(get("/api/v1/users")
                 .header("Authorization", "Bearer " + normalUserToken))
+                .andDo(print())
                 .andExpect(status().isForbidden());
     }
 
@@ -79,7 +110,7 @@ public class UserControllerIntegrationTest {
     void testAccessDeniedWithInvalidToken() throws Exception {
         mockMvc.perform(get("/api/v1/users")
                 .header("Authorization", "Bearer invalid-token"))
-                .andExpect(status().isForbidden()); // Attendu 403 Forbidden
+                .andExpect(status().isForbidden()); 
     }
 
     @Test
@@ -87,8 +118,9 @@ public class UserControllerIntegrationTest {
     void testNormalUserCannotDeleteOtherUser_Forbidden() throws Exception {
         String normalUserToken = jwtUtil.generateToken(normalUser.getEmail(), normalUser.getId(), normalUser.getRole());
 
-        mockMvc.perform(delete("/api/v1/users/" + adminUser.getId()) 
+        mockMvc.perform(delete("/api/v1/users/" + adminUser.getId())
                 .header("Authorization", "Bearer " + normalUserToken))
+                .andDo(print())
                 .andExpect(status().isForbidden());
     }
 
@@ -97,8 +129,9 @@ public class UserControllerIntegrationTest {
     void testAdminCanDeleteAnyUser() throws Exception {
         String adminToken = jwtUtil.generateToken(adminUser.getEmail(), adminUser.getId(), adminUser.getRole());
 
-        mockMvc.perform(delete("/api/v1/users/" + normalUser.getId()) 
+        mockMvc.perform(delete("/api/v1/users/" + normalUser.getId())
                 .header("Authorization", "Bearer " + adminToken))
-                .andExpect(status().isOk()); 
-        }
+                .andDo(print())
+                .andExpect(status().isOk());
+    }
 }
