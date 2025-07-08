@@ -1,6 +1,6 @@
 package com.example.demo.config;
 
-
+import org.springframework.beans.factory.annotation.Value; 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -14,6 +14,12 @@ public class AdminInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Value("${admin.email}")
+    private String adminEmail;
+
+    @Value("${admin.password}")
+    private String adminPassword;
+
     public AdminInitializer(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -21,16 +27,16 @@ public class AdminInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        if (userRepository.findByEmail("dianekassi@admin.com").isEmpty()) {
+        if (userRepository.findByEmail(adminEmail).isEmpty()) {
             UserEntity admin = new UserEntity();
-            admin.setNom("KASSI");
-            admin.setPrenom("Diane");
-            admin.setEmail("dianekassi@admin.com");
-            admin.setMotDePasse(passwordEncoder.encode("Mydayana48"));
+            admin.setNom("KASSI"); 
+            admin.setPrenom("Diane"); 
+            admin.setEmail(adminEmail);
+            admin.setMotDePasse(passwordEncoder.encode(adminPassword));
             admin.setRole("ADMINISTRATEUR");
-            
+
             userRepository.save(admin);
-            System.out.println("Utilisateur administrateur initial créé : dianekassi@admin.com");
+            System.out.println("Utilisateur administrateur initial créé : " + adminEmail);
         } else {
             System.out.println("Utilisateur administrateur existe déjà.");
         }
