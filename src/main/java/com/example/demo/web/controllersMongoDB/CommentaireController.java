@@ -2,7 +2,6 @@ package com.example.demo.web.controllersMongoDB;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -14,50 +13,54 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.entiesMongodb.CommentaireDocument;
+import com.example.demo.DTO.CommentaireRequestDTO;
+import com.example.demo.DTO.CommentaireResponseDTO;
 import com.example.demo.servicesMongoDB.CommentaireService;
 
-@RestController
+@RestController 
 @RequestMapping("/api/v1/commentaires")
 public class CommentaireController {
 
-    @Autowired
-    private CommentaireService commentaireService;
-    
-    @GetMapping("/all")
-    public ResponseEntity<List<CommentaireDocument>> getAllCommentaires() {
-        List<CommentaireDocument> commentaires = commentaireService.getAllCommentaireEntity();
+    private final CommentaireService commentaireService;
+
+    public CommentaireController(CommentaireService commentaireService) {
+        this.commentaireService = commentaireService;
+    }
+
+    @GetMapping("/all") 
+    public ResponseEntity<List<CommentaireResponseDTO>> getAllCommentaires() {
+        List<CommentaireResponseDTO> commentaires = commentaireService.getAllCommentaires();
         return new ResponseEntity<>(commentaires, HttpStatus.OK);
     }
-    
+
     @PostMapping
-    public ResponseEntity<CommentaireDocument> createCommentaire(@RequestBody CommentaireDocument commentaire) {
-        CommentaireDocument savedCommentaire = commentaireService.addCommentaireEntity(commentaire);
+    public ResponseEntity<CommentaireResponseDTO> createCommentaire(@RequestBody CommentaireRequestDTO commentaireDto) {
+        CommentaireResponseDTO savedCommentaire = commentaireService.addCommentaire(commentaireDto);
         return new ResponseEntity<>(savedCommentaire, HttpStatus.CREATED);
     }
-    
+
     @GetMapping("/{id}")
-    public ResponseEntity<CommentaireDocument> getCommentaireById(@PathVariable String id) { 
+    public ResponseEntity<CommentaireResponseDTO> getCommentaireById(@PathVariable String id) {
         return commentaireService.getCommentaireById(id)
                 .map(commentaire -> new ResponseEntity<>(commentaire, HttpStatus.OK))
                 .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
-    
-    @PutMapping("/{id}")
-    public ResponseEntity<CommentaireDocument> updateCommentaire(@PathVariable String id, @RequestBody CommentaireDocument commentaireDetails) { // Changement ici : Long -> String
+
+    @PutMapping("/{id}") 
+    public ResponseEntity<CommentaireResponseDTO> updateCommentaire(@PathVariable String id, @RequestBody CommentaireRequestDTO commentaireDetailsDto) {
         try {
-            CommentaireDocument updatedCommentaire = commentaireService.updateCommentaire(id, commentaireDetails);
+            CommentaireResponseDTO updatedCommentaire = commentaireService.updateCommentaire(id, commentaireDetailsDto);
             return new ResponseEntity<>(updatedCommentaire, HttpStatus.OK);
         } catch (RuntimeException e) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
     }
-    
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCommentaire(@PathVariable String id) { 
+
+    @DeleteMapping("/{id}") 
+    public ResponseEntity<Void> deleteCommentaire(@PathVariable String id) {
         try {
             commentaireService.deleteCommentaire(id);
-            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT); 
         } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }

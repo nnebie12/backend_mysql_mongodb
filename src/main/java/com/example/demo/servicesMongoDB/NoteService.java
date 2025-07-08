@@ -3,14 +3,13 @@ package com.example.demo.servicesMongoDB;
 import java.util.List;
 import java.util.Optional;
 
-import com.example.demo.entiesMongodb.NoteDocument;
+import com.example.demo.DTO.NoteRequestDTO;
+import com.example.demo.DTO.NoteResponseDTO;
 
 public interface NoteService {
-
-	List<NoteDocument> getAllNoteEntity();
-    NoteDocument addNoteEntity(NoteDocument noteEntity);
-    Optional<NoteDocument> getNoteById(String id);
-    NoteDocument updateNote(String id, NoteDocument noteEntity);
+    List<NoteResponseDTO> getAllNotes(); 
+    NoteResponseDTO addNote(NoteRequestDTO noteDto); 
+    Optional<NoteResponseDTO> getNoteById(String id);
+    NoteResponseDTO updateNote(String id, NoteRequestDTO noteDto); 
     void deleteNote(String id);
-
 }

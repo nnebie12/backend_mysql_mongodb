@@ -1,16 +1,16 @@
-package com.example.demo.web.controllersMysql; 
+package com.example.demo.web.controllersMysql;
 
-import com.example.demo.entitiesMysql.RecetteEntity;
 import com.example.demo.entitiesMysql.UserEntity;
 import com.example.demo.servicesMysql.RecetteService;
 import com.example.demo.servicesMysql.UserService;
 
 import com.example.demo.entiesMongodb.ComportementUtilisateur;
+import com.example.demo.entiesMongodb.enums.ProfilUtilisateur; 
 import com.example.demo.servicesMongoDB.ComportementUtilisateurService;
-import com.example.demo.DTO.AnalysePatternsDTO; 
+import com.example.demo.DTO.AnalysePatternsDTO;
 
 import java.util.List;
-import java.util.Map; 
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,19 +19,19 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/administrateur")
 public class AdminController {
-    
+
     private final UserService userService;
     private final RecetteService recetteService;
-    private final ComportementUtilisateurService comportementUtilisateurService; 
-    
-    public AdminController(UserService userService, 
+    private final ComportementUtilisateurService comportementUtilisateurService;
+
+    public AdminController(UserService userService,
                            RecetteService recetteService,
                            ComportementUtilisateurService comportementUtilisateurService) {
         this.userService = userService;
         this.recetteService = recetteService;
-        this.comportementUtilisateurService = comportementUtilisateurService; 
+        this.comportementUtilisateurService = comportementUtilisateurService;
     }
-    
+
     // --- Gestion des Utilisateurs (MySQL) ---
 
     @GetMapping("/users")
@@ -39,7 +39,7 @@ public class AdminController {
     public ResponseEntity<List<UserEntity>> getAllUtilisateurs() {
         return ResponseEntity.ok(userService.getAllUsers());
     }
-    
+
     @PutMapping("/users/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserEntity> updateUtilisateur(@PathVariable Long id, @RequestBody UserEntity updatedUser) {
@@ -50,7 +50,7 @@ public class AdminController {
             return ResponseEntity.notFound().build();
         }
     }
-    
+
     @DeleteMapping("/users/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteUtilisateur(@PathVariable Long id) {
@@ -61,32 +61,9 @@ public class AdminController {
             return ResponseEntity.notFound().build();
         }
     }
-    
+
     // --- Gestion des Recettes (MySQL) ---
 
-    
-    @PostMapping("/recettes")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<RecetteEntity> createRecette(@RequestBody RecetteEntity recetteEntity, @RequestParam Long userId) {
-        try {
-            RecetteEntity savedRecette = recetteService.saveRecette(recetteEntity, userId);
-            return ResponseEntity.status(HttpStatus.CREATED).body(savedRecette);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
-        }
-    }
-    
-    @PutMapping("/recettes/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<RecetteEntity> updateRecette(@PathVariable Long id, @RequestBody RecetteEntity recette) {
-        try {
-            RecetteEntity updatedRecette = recetteService.updateRecette(id, recette);
-            return ResponseEntity.ok(updatedRecette);
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-    
     @DeleteMapping("/recettes/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteRecette(@PathVariable Long id) {
@@ -110,7 +87,7 @@ public class AdminController {
             comportementUtilisateurService.deleteUserBehavior(userId);
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build(); 
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -119,7 +96,7 @@ public class AdminController {
      */
     @GetMapping("/comportements/profil/{profil}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<ComportementUtilisateur>> getUsersByProfile(@PathVariable String profil) {
+    public ResponseEntity<List<ComportementUtilisateur>> getUsersByProfile(@PathVariable ProfilUtilisateur profil) {
         List<ComportementUtilisateur> utilisateurs = comportementUtilisateurService.getUsersByProfile(profil);
         if (utilisateurs.isEmpty()) {
             return ResponseEntity.notFound().build();

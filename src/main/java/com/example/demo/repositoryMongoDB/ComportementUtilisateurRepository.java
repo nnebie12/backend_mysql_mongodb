@@ -7,7 +7,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
+
 import com.example.demo.entiesMongodb.ComportementUtilisateur;
+import com.example.demo.entiesMongodb.enums.ProfilUtilisateur; 
+import com.example.demo.entiesMongodb.enums.Saison; 
 
 /**
  * Repository pour la gestion des données de comportement utilisateur en MongoDB
@@ -24,10 +27,10 @@ public interface ComportementUtilisateurRepository extends MongoRepository<Compo
     
     /**
      * Trouve tous les utilisateurs ayant un profil spécifique
-     * @param profilUtilisateur Type de profil
+     * @param profilUtilisateur Type de profil (maintenant ProfilUtilisateur enum)
      * @return Liste des comportements correspondants
      */
-    List<ComportementUtilisateur> findByMetriques_ProfilUtilisateur(String profilUtilisateur);
+    List<ComportementUtilisateur> findByMetriques_ProfilUtilisateur(ProfilUtilisateur profilUtilisateur);
     
     /**
      * Trouve les utilisateurs avec un score d'engagement supérieur au seuil
@@ -53,10 +56,10 @@ public interface ComportementUtilisateurRepository extends MongoRepository<Compo
     
     /**
      * Trouve les utilisateurs par saison préférée
-     * @param saison Saison préférée
+     * @param saison Saison préférée (maintenant Saison enum)
      * @return Liste des comportements correspondants
      */
-    List<ComportementUtilisateur> findByPreferencesSaisonnieres_SaisonPreferee(String saison);
+    List<ComportementUtilisateur> findByPreferencesSaisonnieres_SaisonPreferee(Saison saison); // Change le type
     
     /**
      * Trouve les utilisateurs ayant un type de recette préféré
@@ -74,18 +77,18 @@ public interface ComportementUtilisateurRepository extends MongoRepository<Compo
     
     /**
      * Trouve les comportements avec pagination
-     * @param profil Profil utilisateur (optionnel)
+     * @param profil Profil utilisateur (optionnel, maintenant ProfilUtilisateur enum)
      * @param pageable Paramètres de pagination
      * @return Page de comportements
      */
-    Page<ComportementUtilisateur> findByMetriques_ProfilUtilisateur(String profil, Pageable pageable);
+    Page<ComportementUtilisateur> findByMetriques_ProfilUtilisateur(ProfilUtilisateur profil, Pageable pageable);
     
     /**
      * Compte les utilisateurs par profil
-     * @param profil Type de profil
+     * @param profil Type de profil (maintenant ProfilUtilisateur enum)
      * @return Nombre d'utilisateurs
      */
-    long countByMetriques_ProfilUtilisateur(String profil);
+    long countByMetriques_ProfilUtilisateur(ProfilUtilisateur profil);
     
     /**
      * Vérifie l'existence d'un comportement pour un utilisateur

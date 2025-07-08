@@ -1,32 +1,41 @@
 package com.example.demo.servicesMysql;
 
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import com.example.demo.entiesMongodb.CommentaireDocument;
-import com.example.demo.entiesMongodb.NoteDocument;
-import com.example.demo.entitiesMysql.RecetteEntity;
-import com.example.demo.entitiesMysql.RecetteIngredientEntity;
+import com.example.demo.DTO.CommentaireRequestDTO;
+import com.example.demo.DTO.CommentaireResponseDTO;
+import com.example.demo.DTO.NoteRequestDTO;
+import com.example.demo.DTO.NoteResponseDTO;
+import com.example.demo.DTO.RecetteIngredientDTO;
+import com.example.demo.DTO.RecetteRequestDTO;
+import com.example.demo.DTO.RecetteResponseDTO;
 
-public interface RecetteService {
-
-	RecetteEntity saveRecette(RecetteEntity recetteEntity, Long userId);
-    Optional<RecetteEntity> getRecetteById(Long id);
-    RecetteEntity updateRecette(Long id, RecetteEntity recetteDetails);
-    List<RecetteEntity> getRecettesByUser(Long userId);
-    List<RecetteEntity> getAllRecettes();
-    void deleteRecette(Long id);
-
-    
-    CommentaireDocument addCommentaire(Long recetteId, Long userId, CommentaireDocument commentaire);
-    NoteDocument addNote(Long recetteId, Long userId, NoteDocument note);
-    List<CommentaireDocument> getCommentairesByRecette(Long recetteId);
-    List<NoteDocument> getNotesByRecette(Long recetteId);
-    Double getMoyenneNotesByRecette(Long recetteId);
-    Map<String, Object> getRecetteDetails(Long recetteId);
-    
-    void addIngredientToRecette(Long recetteId, Long ingredientId, String quantite);
-    void removeIngredientFromRecette(Long recetteId, Long ingredientId);
-    List<RecetteIngredientEntity> getRecetteIngredients(Long recetteId);
-    }
+	public interface RecetteService {
+	
+	 RecetteResponseDTO saveRecette(RecetteRequestDTO recetteDTO, Long userId);
+	 Optional<RecetteResponseDTO> getRecetteById(Long id);
+	
+	 RecetteResponseDTO updateRecette(Long id, RecetteRequestDTO recetteDetails); 
+	
+	 List<RecetteResponseDTO> getRecettesByUser(Long userId);
+	
+	 List<RecetteResponseDTO> getAllRecettes();
+	 void deleteRecette(Long id);
+	
+	 CommentaireResponseDTO addCommentaire(Long recetteId, Long userId, CommentaireRequestDTO commentaireDTO);
+	 NoteResponseDTO addNote(Long recetteId, Long userId, NoteRequestDTO noteDTO);
+	
+	 List<CommentaireResponseDTO> getCommentairesByRecette(Long recetteId);
+	 List<NoteResponseDTO> getNotesByRecette(Long recetteId);
+	 Double getMoyenneNotesByRecette(Long recetteId);
+	
+	 Map<String, Object> getRecetteDetails(Long recetteId);
+	
+	 void addIngredientToRecette(Long recetteId, Long ingredientId, String quantite);
+	 void removeIngredientFromRecette(Long recetteId, Long ingredientId);
+	
+	 List<RecetteIngredientDTO> getRecetteIngredients(Long recetteId);
+}

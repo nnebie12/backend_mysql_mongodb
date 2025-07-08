@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 
 import com.example.demo.DTO.AnalysePatternsDTO;
 import com.example.demo.entiesMongodb.*;
+import com.example.demo.entiesMongodb.enums.ProfilUtilisateur;
+import com.example.demo.entiesMongodb.enums.Saison;
 import com.example.demo.repositoryMongoDB.ComportementUtilisateurRepository;
 import com.example.demo.servicesMongoDB.*;
 
@@ -21,7 +23,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
 
     private static final Logger logger = LoggerFactory.getLogger(ComportementUtilisateurServiceImpl.class);
 
-    private final ComportementUtilisateurRepository comportementRepository;
+    private final ComportementUtilisateurRepository comportementUtilisateurRepository;
     private final InteractionUtilisateurService interactionService;
     private final HistoriqueRechercheService historiqueRechercheService;
     
@@ -30,17 +32,17 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     private static final double SCORE_ENGAGEMENT_FIDELE = 70.0;
     private static final double SCORE_ENGAGEMENT_ACTIF = 40.0;
     private static final double SCORE_ENGAGEMENT_OCCASIONNEL = 15.0;
+    private static final long SESSION_INACTIVITY_THRESHOLD_MINUTES = 30; // Seuil pour définir une session
 
-    public ComportementUtilisateurServiceImpl(ComportementUtilisateurRepository comportementRepository,
+    public ComportementUtilisateurServiceImpl(ComportementUtilisateurRepository comportementUtilisateurRepository,
                                             InteractionUtilisateurService interactionService,
                                             HistoriqueRechercheService historiqueRechercheService) {
-        this.comportementRepository = comportementRepository;
+        this.comportementUtilisateurRepository = comportementUtilisateurRepository;
         this.interactionService = interactionService;
         this.historiqueRechercheService = historiqueRechercheService;
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMINISTRATEUR')")
     public ComportementUtilisateur createBehavior(Long userId) {
         ComportementUtilisateur comportement = new ComportementUtilisateur();
         comportement.setUserId(userId);
@@ -55,21 +57,68 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
         metriques.setNombreFavorisTotal(0);
         metriques.setNombreCommentairesLaisses(0);
         metriques.setScoreEngagement(0.0);
-        metriques.setProfilUtilisateur("nouveau");
+        metriques.setProfilUtilisateur(ProfilUtilisateur.NOUVEAU); 
         metriques.setFrequenceActions(new HashMap<>());
+        metriques.setScoreRecommandation(0.0);
+        metriques.setTendancesTemporelles(new HashMap<>());
+        metriques.setStreakConnexion(0);
+        metriques.setDerniereActivite(LocalDateTime.now());
         comportement.setMetriques(metriques);
 
-        return comportementRepository.save(comportement);
+        // Initialisation des préférences saisonnières
+        ComportementUtilisateur.PreferencesSaisonnieres preferencesSaisonnieres =
+            new ComportementUtilisateur.PreferencesSaisonnieres();
+        preferencesSaisonnieres.setIngredientsPrintemps(new ArrayList<>());
+        preferencesSaisonnieres.setIngredientsEte(new ArrayList<>());
+        preferencesSaisonnieres.setIngredientsAutomne(new ArrayList<>());
+        preferencesSaisonnieres.setIngredientsHiver(new ArrayList<>());
+        preferencesSaisonnieres.setSaisonPreferee(null); 
+        preferencesSaisonnieres.setScoresPreferenceSaisonniere(new HashMap<>());
+        preferencesSaisonnieres.setDerniereMiseAJour(LocalDateTime.now());
+        comportement.setPreferencesSaisonnieres(preferencesSaisonnieres);
+
+        // Initialisation des habitudes de navigation
+        ComportementUtilisateur.HabitudesNavigation habitudesNavigation =
+            new ComportementUtilisateur.HabitudesNavigation();
+        habitudesNavigation.setPagesVisitees(new HashMap<>());
+        habitudesNavigation.setTempsParPage(new HashMap<>());
+        habitudesNavigation.setRecherchesFavorites(new ArrayList<>());
+        habitudesNavigation.setTypeRecettePreferee(null);
+        habitudesNavigation.setNombreConnexionsParJour(0);
+        habitudesNavigation.setHeuresConnexionHabituelles(new ArrayList<>());
+        habitudesNavigation.setParcoursFavoris(new HashMap<>());
+        habitudesNavigation.setTempsMoyenParSession(0.0);
+        habitudesNavigation.setNombrePagesParSession(0);
+        habitudesNavigation.setCategoriesPreferees(new ArrayList<>());
+        habitudesNavigation.setFrequenceParCategorie(new HashMap<>());
+        comportement.setHabitudesNavigation(habitudesNavigation);
+
+        // Initialisation des cycles d'activité
+        ComportementUtilisateur.CyclesActivite cyclesActivite =
+            new ComportementUtilisateur.CyclesActivite();
+        
+        // Initialisation des CreneauRepas 
+        cyclesActivite.setPetitDejeuner(new ComportementUtilisateur.CreneauRepas(null, null, new ArrayList<>(), 0, false, 0.0, new ArrayList<>(), new HashMap<>()));
+        cyclesActivite.setDejeuner(new ComportementUtilisateur.CreneauRepas(null, null, new ArrayList<>(), 0, false, 0.0, new ArrayList<>(), new HashMap<>()));
+        cyclesActivite.setDiner(new ComportementUtilisateur.CreneauRepas(null, null, new ArrayList<>(), 0, false, 0.0, new ArrayList<>(), new HashMap<>()));
+        cyclesActivite.setActiviteParJour(new HashMap<>());
+        cyclesActivite.setJoursActifs(new ArrayList<>());
+        cyclesActivite.setActivitesParCreneau(new HashMap<>());
+        cyclesActivite.setCreneauLePlusActif(null);
+        cyclesActivite.setConsistanceHoraire(0.0);
+        comportement.setCyclesActivite(cyclesActivite);
+
+        return comportementUtilisateurRepository.save(comportement);
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMINISTRATEUR') or (#userId == authentication.principal.id)")
+    @PreAuthorize("hasRole('ADMIN') or (#userId == authentication.principal.id)")
     public Optional<ComportementUtilisateur> getBehaviorByUserId(Long userId) {
-        return comportementRepository.findByUserId(userId);
+        return comportementUtilisateurRepository.findByUserId(userId);
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMINISTRATEUR') or (#userId == authentication.principal.id)")
+    @PreAuthorize("hasRole('ADMIN') or (#userId == authentication.principal.id)")
     public ComportementUtilisateur getOrCreateBehavior(Long userId) {
         return getBehaviorByUserId(userId)
             .orElseGet(() -> createBehavior(userId));
@@ -78,11 +127,11 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     @Override
     public ComportementUtilisateur updateBehavior(ComportementUtilisateur comportement) {
         comportement.setDateMiseAJour(LocalDateTime.now());
-        return comportementRepository.save(comportement);
+        return comportementUtilisateurRepository.save(comportement);
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMINISTRATEUR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public void updateMetrics(Long userId) {
         ComportementUtilisateur comportement = getOrCreateBehavior(userId);
         ComportementUtilisateur.MetriquesComportementales metriques =
@@ -90,11 +139,9 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             comportement.getMetriques() :
             new ComportementUtilisateur.MetriquesComportementales();
 
-        // Récupérer les données des services existants
         List<InteractionUtilisateur> interactions = interactionService.getInteractionsByUserId(userId);
         List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoryByUserId(userId);
 
-        // Métriques de recherche
         metriques.setNombreRecherchesTotales(recherches.size());
         metriques.setTermesRechercheFrequents(
             recherches.stream()
@@ -109,7 +156,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
                 .collect(Collectors.toList())
         );
 
-        // Calculer le taux de recherches fructueuses si disponible
         long recherchesFructueuses = recherches.stream()
             .filter(r -> Boolean.TRUE.equals(r.getRechercheFructueuse()))
             .count();
@@ -117,11 +163,9 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             (double) recherchesFructueuses / recherches.size() * 100;
         metriques.setTauxRecherchesFructueuses(tauxFructueuses);
 
-        // Analyser les patterns
         metriques.setScoreEngagement(calculerScoreEngagement(interactions, recherches));
-        metriques.setProfilUtilisateur(determinerProfilUtilisateur(metriques.getScoreEngagement()));
+        metriques.setProfilUtilisateur(determinerProfilUtilisateur(metriques.getScoreEngagement())); 
 
-        // Mettre à jour les fréquences d'actions
         Map<String, Integer> frequences = new HashMap<>();
         interactions.forEach(interaction -> {
             String type = interaction.getTypeInteraction();
@@ -129,7 +173,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
         });
         metriques.setFrequenceActions(frequences);
 
-        // Stocker les références aux entités séparées
         comportement.setHistoriqueInteractionsIds(
             interactions.stream().map(InteractionUtilisateur::getId).collect(Collectors.toList())
         );
@@ -142,15 +185,13 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMINISTRATEUR') or (#userId == authentication.principal.id)")
+    @PreAuthorize("hasRole('ADMIN') or (#userId == authentication.principal.id)")
     public ComportementUtilisateur recordSearch(Long userId, String terme,
-                                                       List<HistoriqueRecherche.Filtre> filtres,
-                                                       Integer nombreResultats,
-                                                       Boolean rechercheFructueuse) {
-        // Utiliser votre service existant pour créer l'historique
+                                                List<HistoriqueRecherche.Filtre> filtres,
+                                                Integer nombreResultats,
+                                                Boolean rechercheFructueuse) {
         HistoriqueRecherche nouvelleRecherche = historiqueRechercheService.recordSearch(userId, terme, filtres);
 
-        // Mettre à jour le comportement utilisateur
         ComportementUtilisateur comportement = getOrCreateBehavior(userId);
 
         if (comportement.getHistoriqueRecherchesIds() == null) {
@@ -159,7 +200,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
 
         comportement.getHistoriqueRecherchesIds().add(nouvelleRecherche.getId());
 
-        // Limiter les références aux 500 dernières
         if (comportement.getHistoriqueRecherchesIds().size() > MAX_HISTORIQUE_RECHERCHES) {
             comportement.getHistoriqueRecherchesIds().remove(0);
         }
@@ -169,11 +209,10 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
 
     @Override
     public ComportementUtilisateur enregistrerInteraction(Long userId, String typeInteraction,
-                                                         String entiteInteraction, String detailsInteraction) {
-               InteractionUtilisateur nouvelleInteraction = interactionService.addInteractionUtilisateur(
-            userId, typeInteraction, null, null);
+                                                        String entiteInteraction, String detailsInteraction) {
+        InteractionUtilisateur nouvelleInteraction = interactionService.addInteractionUtilisateur(
+            userId, typeInteraction, null, null); 
 
-        // Mettre à jour le comportement utilisateur
         ComportementUtilisateur comportement = getOrCreateBehavior(userId);
 
         if (comportement.getHistoriqueInteractionsIds() == null) {
@@ -182,18 +221,15 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
 
         comportement.getHistoriqueInteractionsIds().add(nouvelleInteraction.getId());
 
-        // Limiter les références aux 1000 dernières interactions
         if (comportement.getHistoriqueInteractionsIds().size() > MAX_HISTORIQUE_INTERACTIONS) {
             comportement.getHistoriqueInteractionsIds().remove(0);
         }
 
-        // Mettre à jour les métriques en temps réel
         ComportementUtilisateur.MetriquesComportementales metriques =
             comportement.getMetriques() != null ?
             comportement.getMetriques() :
             new ComportementUtilisateur.MetriquesComportementales();
 
-        // Mettre à jour la fréquence des actions
         Map<String, Integer> frequences = metriques.getFrequenceActions();
         if (frequences == null) {
             frequences = new HashMap<>();
@@ -201,11 +237,10 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
         frequences.put(typeInteraction, frequences.getOrDefault(typeInteraction, 0) + 1);
         metriques.setFrequenceActions(frequences);
 
-        // Recalculer le score d'engagement
         List<InteractionUtilisateur> interactions = interactionService.getInteractionsByUserId(userId);
         List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoryByUserId(userId);
         metriques.setScoreEngagement(calculerScoreEngagement(interactions, recherches));
-        metriques.setProfilUtilisateur(determinerProfilUtilisateur(metriques.getScoreEngagement()));
+        metriques.setProfilUtilisateur(determinerProfilUtilisateur(metriques.getScoreEngagement())); 
 
         comportement.setMetriques(metriques);
 
@@ -213,7 +248,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMINISTRATEUR') or (#userId == authentication.principal.id)")
+    @PreAuthorize("hasRole('ADMIN') or (#userId == authentication.principal.id)")
     public List<String> getFrequentSearchTerms(Long userId) {
         List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoryByUserId(userId);
 
@@ -230,68 +265,61 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMINISTRATEUR')")
-    public List<ComportementUtilisateur> getUsersByProfile(String profil) {
-        return comportementRepository.findByMetriques_ProfilUtilisateur(profil);
+    public List<ComportementUtilisateur> getUsersByProfile(ProfilUtilisateur profil) {
+        return comportementUtilisateurRepository.findByMetriques_ProfilUtilisateur(profil);
     }
 
+
     @Override
-    @PreAuthorize("hasRole('ADMINISTRATEUR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public List<ComportementUtilisateur> getEngagedUsers(Double scoreMinimum) {
-        return comportementRepository.findByMetriques_ScoreEngagementGreaterThan(scoreMinimum);
+        return comportementUtilisateurRepository.findByMetriques_ScoreEngagementGreaterThan(scoreMinimum);
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMINISTRATEUR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public void deleteUserBehavior(Long userId) {
-        comportementRepository.deleteByUserId(userId);
+    	comportementUtilisateurRepository.deleteByUserId(userId);
     }
 
     private Double calculerScoreEngagement(List<InteractionUtilisateur> interactions,
                                          List<HistoriqueRecherche> recherches) {
         double score = 0.0;
 
-        // Points pour les interactions
         score += interactions.size() * 0.1;
-
-        // Points pour les recherches
         score += recherches.size() * 0.05;
 
-        // Bonus pour les recherches fructueuses
         long recherchesFructueuses = recherches.stream()
             .filter(r -> Boolean.TRUE.equals(r.getRechercheFructueuse()))
             .count();
         score += recherchesFructueuses * 0.1;
 
-        // Normaliser le score (0-100)
         return Math.min(100.0, score);
     }
 
-    private String determinerProfilUtilisateur(Double scoreEngagement) {
-        if (scoreEngagement == null) return "nouveau";
+    private ProfilUtilisateur determinerProfilUtilisateur(Double scoreEngagement) { 
+        if (scoreEngagement == null) return ProfilUtilisateur.NOUVEAU;
 
-        if (scoreEngagement > SCORE_ENGAGEMENT_FIDELE) return "fidèle";
-        else if (scoreEngagement > SCORE_ENGAGEMENT_ACTIF) return "actif";
-        else if (scoreEngagement > SCORE_ENGAGEMENT_OCCASIONNEL) return "occasionnel";
-        else return "débutant";
+        if (scoreEngagement > SCORE_ENGAGEMENT_FIDELE) return ProfilUtilisateur.FIDELE;
+        else if (scoreEngagement > SCORE_ENGAGEMENT_ACTIF) return ProfilUtilisateur.ACTIF;
+        else if (scoreEngagement > SCORE_ENGAGEMENT_OCCASIONNEL) return ProfilUtilisateur.OCCASIONNEL;
+        else return ProfilUtilisateur.DEBUTANT;
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMINISTRATEUR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Object> obtenirStatistiquesComportement(Long userId) {
         ComportementUtilisateur comportement = getOrCreateBehavior(userId);
         Map<String, Object> statistiques = new HashMap<>();
 
-        // Informations générales
         statistiques.put("userId", userId);
         statistiques.put("dateCreation", comportement.getDateCreation());
         statistiques.put("dateMiseAJour", comportement.getDateMiseAJour());
 
-        // Métriques comportementales
         ComportementUtilisateur.MetriquesComportementales metriques = comportement.getMetriques();
         if (metriques != null) {
             statistiques.put("scoreEngagement", metriques.getScoreEngagement());
-            statistiques.put("profilUtilisateur", metriques.getProfilUtilisateur());
+            statistiques.put("profilUtilisateur", metriques.getProfilUtilisateur() != null ? metriques.getProfilUtilisateur().name() : "N/A"); 
             statistiques.put("nombreFavorisTotal", metriques.getNombreFavorisTotal());
             statistiques.put("nombreCommentairesLaisses", metriques.getNombreCommentairesLaisses());
             statistiques.put("noteMoyenneDonnee", metriques.getNoteMoyenneDonnee());
@@ -301,15 +329,12 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             statistiques.put("frequenceActions", metriques.getFrequenceActions());
         }
 
-        // Statistiques détaillées depuis les services
         try {
             List<InteractionUtilisateur> interactions = interactionService.getInteractionsByUserId(userId);
             List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoryByUserId(userId);
 
-            // Statistiques d'interaction
             statistiques.put("nombreInteractionsTotal", interactions.size());
 
-            // Grouper les interactions par type
             Map<String, Long> interactionsParType = interactions.stream()
                 .collect(Collectors.groupingBy(
                     InteractionUtilisateur::getTypeInteraction,
@@ -317,30 +342,25 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
                 ));
             statistiques.put("interactionsParType", interactionsParType);
 
-            // Statistiques temporelles des interactions (derniers 30 jours)
             LocalDateTime il30Jours = LocalDateTime.now().minusDays(30);
             long interactionsRecentes = interactions.stream()
                 .filter(i -> i.getDateInteraction() != null && i.getDateInteraction().isAfter(il30Jours))
                 .count();
             statistiques.put("interactionsDerniers30Jours", interactionsRecentes);
 
-            // Durée moyenne de consultation (si disponible)
             OptionalDouble dureeMoyenne = interactions.stream()
                 .filter(i -> i.getDureeConsultation() != null)
                 .mapToInt(InteractionUtilisateur::getDureeConsultation)
                 .average();
             statistiques.put("dureeMoyenneConsultation", dureeMoyenne.isPresent() ? dureeMoyenne.getAsDouble() : null);
 
-            // Statistiques de recherche
             statistiques.put("nombreRecherches", recherches.size());
 
-            // Recherches récentes (derniers 30 jours)
             long recherchesRecentes = recherches.stream()
                 .filter(r -> r.getDateRecherche() != null && r.getDateRecherche().isAfter(il30Jours))
                 .count();
             statistiques.put("recherchesDerniers30Jours", recherchesRecentes);
 
-            // Analyse des patterns de recherche
             Map<String, Long> termesFrequents = recherches.stream()
                 .collect(Collectors.groupingBy(
                     HistoriqueRecherche::getTerme,
@@ -358,7 +378,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
                     ))
             );
 
-            // Analyse de l'activité par heure de la journée
             Map<Integer, Long> activiteParHeure = interactions.stream()
                 .filter(i -> i.getDateInteraction() != null)
                 .collect(Collectors.groupingBy(
@@ -367,7 +386,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
                 ));
             statistiques.put("activiteParHeure", activiteParHeure);
 
-            // Tendance d'engagement (évolution du score)
             statistiques.put("tendanceEngagement", calculerTendanceEngagement(interactions, recherches));
 
         } catch (Exception e) {
@@ -379,12 +397,11 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     }
 
     private String calculerTendanceEngagement(List<InteractionUtilisateur> interactions,
-                                            List<HistoriqueRecherche> recherches) {
+                                             List<HistoriqueRecherche> recherches) {
         LocalDateTime maintenant = LocalDateTime.now();
         LocalDateTime il7Jours = maintenant.minusDays(7);
         LocalDateTime il14Jours = maintenant.minusDays(14);
 
-        // Compter les activités des 7 derniers jours vs 7 jours précédents
         long activiteRecente = interactions.stream()
             .filter(i -> i.getDateInteraction() != null && i.getDateInteraction().isAfter(il7Jours))
             .count();
@@ -394,13 +411,13 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
 
         long activitePrecedente = interactions.stream()
             .filter(i -> i.getDateInteraction() != null &&
-                    i.getDateInteraction().isAfter(il14Jours) &&
-                    i.getDateInteraction().isBefore(il7Jours))
+                        i.getDateInteraction().isAfter(il14Jours) &&
+                        i.getDateInteraction().isBefore(il7Jours))
             .count();
         activitePrecedente += recherches.stream()
             .filter(r -> r.getDateRecherche() != null &&
-                    r.getDateRecherche().isAfter(il14Jours) &&
-                    r.getDateRecherche().isBefore(il7Jours))
+                        r.getDateRecherche().isAfter(il14Jours) &&
+                        r.getDateRecherche().isBefore(il7Jours))
             .count();
 
         if (activitePrecedente == 0) {
@@ -416,49 +433,108 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     @Override
     public ComportementUtilisateur analyserPatterns(Long userId) {
         try {
-            // Récupérer ou créer le comportement utilisateur
             ComportementUtilisateur comportement = getOrCreateBehavior(userId);
+
             
-            // Récupérer les données nécessaires pour l'analyse
+            if (comportement.getMetriques() == null) comportement.setMetriques(new ComportementUtilisateur.MetriquesComportementales());
+            if (comportement.getPreferencesSaisonnieres() == null) comportement.setPreferencesSaisonnieres(new ComportementUtilisateur.PreferencesSaisonnieres());
+            if (comportement.getHabitudesNavigation() == null) comportement.setHabitudesNavigation(new ComportementUtilisateur.HabitudesNavigation());
+            if (comportement.getCyclesActivite() == null) comportement.setCyclesActivite(new ComportementUtilisateur.CyclesActivite());
+
             List<InteractionUtilisateur> interactions = interactionService.getInteractionsByUserId(userId);
             List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoryByUserId(userId);
-            
-            // Analyser les patterns et mettre à jour les métriques
-            ComportementUtilisateur.MetriquesComportementales metriques = 
-                comportement.getMetriques() != null ? 
-                comportement.getMetriques() : 
-                new ComportementUtilisateur.MetriquesComportementales();
-            
-            // 1. Patterns temporels
+
+            ComportementUtilisateur.MetriquesComportementales metriques = comportement.getMetriques();
+            ComportementUtilisateur.PreferencesSaisonnieres prefsSaison = comportement.getPreferencesSaisonnieres(); 
+            ComportementUtilisateur.HabitudesNavigation habitudesNav = comportement.getHabitudesNavigation();
+            ComportementUtilisateur.CyclesActivite cyclesActivite = comportement.getCyclesActivite();
+
+            // 1. Patterns temporels et mise à jour de CyclesActivite
             Map<String, Object> patternsTemporels = analyserPatternsTemporels(interactions, recherches);
+            Object activiteObj = patternsTemporels.get("activiteParJourSemaine");
+            Map<DayOfWeek, Long> activiteParJourSemaineBrute = new HashMap<>();
+
             
-            // 2. Patterns de navigation  
-            Map<String, Object> patternsNavigation = analyserPatternsNavigation(interactions);
+            if (activiteObj instanceof Map) {
+                
+                @SuppressWarnings("unchecked")
+                Map<DayOfWeek, Long> tempMap = (Map<DayOfWeek, Long>) activiteObj;
+                activiteParJourSemaineBrute.putAll(tempMap);
+            } else {
+                logger.warn("Le type de 'activiteParJourSemaine' n'est pas une Map<DayOfWeek, Long> pour l'utilisateur {}", userId);
+            }
+
+            if (!activiteParJourSemaineBrute.isEmpty()) { 
+                Map<String, Integer> activiteParJourStringInteger = activiteParJourSemaineBrute.entrySet().stream()
+                        .collect(Collectors.toMap(
+                                entry -> entry.getKey().toString(), 
+                                entry -> entry.getValue().intValue() 
+                        ));
+                cyclesActivite.setActiviteParJour(activiteParJourStringInteger);
+                cyclesActivite.setCreneauLePlusActif((String) patternsTemporels.get("heurePicActivite")); 
+                cyclesActivite.setJoursActifs(activiteParJourStringInteger.keySet().stream().collect(Collectors.toList())); 
+            } else {
+                cyclesActivite.setActiviteParJour(new HashMap<>());
+                cyclesActivite.setJoursActifs(new ArrayList<>());
+            }
+
+            // 2. Patterns de navigation et mise à jour de HabitudesNavigation
             
-            // 3. Patterns de recherche
-            Map<String, Object> patternsRecherche = analyserPatternsRecherche(recherches);
+            Map<String, Object> patternsNavigationResult = analyserPatternsNavigation(interactions);
+
+            habitudesNav.setPagesVisitees(safeConvertToStringIntegerMap(patternsNavigationResult.get("pagesVisitees"))); 
+            habitudesNav.setTempsParPage(safeConvertToStringLongMap(patternsNavigationResult.get("tempsMoyenConsultationParType"))); 
+
+            habitudesNav.setTempsMoyenParSession((Double) analyserPatternsSessions(interactions, recherches).get("dureeMoyenneSessionMinutes"));
+            habitudesNav.setNombrePagesParSession(((Double) analyserPatternsSessions(interactions, recherches).get("nombreActivitesParSession")).intValue());
+            habitudesNav.setParcoursFavoris(safeConvertToStringStringMap(analyserSequencesActions(interactions)));
+
+            Map<String, Object> preferencesResult = analyserPreferences(interactions, recherches); 
+            Object categoriesObj = preferencesResult.get("categoriesPreferees");
+
             
-            // 4. Mise à jour du score d'engagement basé sur les patterns
+            if (categoriesObj instanceof List<?>) { 
+                @SuppressWarnings("unchecked") 
+                List<String> categoriesPreferees = (List<String>) categoriesObj;
+                habitudesNav.setCategoriesPreferees(categoriesPreferees);
+            } else {
+                habitudesNav.setCategoriesPreferees(new ArrayList<>());
+                logger.warn("Le type de 'categoriesPreferees' n'est pas une List<?> pour l'utilisateur {}. Valeur: {}", userId, categoriesObj);
+            }
+            habitudesNav.setTypeRecettePreferee((String) preferencesResult.get("typeRecetteDominant"));
+
+            
+            Object saisonPrefereeObj = preferencesResult.get("saisonPreferee");
+            if (saisonPrefereeObj instanceof String) { 
+                try {
+                    prefsSaison.setSaisonPreferee(Saison.valueOf((String) saisonPrefereeObj));
+                } catch (IllegalArgumentException e) {
+                    logger.warn("Saison invalide '{}' trouvée pour l'utilisateur {}", saisonPrefereeObj, userId);
+                }
+            } else {
+                prefsSaison.setSaisonPreferee(null); 
+            }
+            prefsSaison.setDerniereMiseAJour(LocalDateTime.now()); 
+
+            // 3. Patterns de recherche (mis à jour dans Metriques)
+
+            // 4. Score d'engagement et profil utilisateur (mis à jour dans Metriques)
             double scoreEngagement = calculerScoreEngagement(interactions, recherches);
             metriques.setScoreEngagement(scoreEngagement);
-            
-            // 5. Mise à jour du profil utilisateur
-            String profilUtilisateur = determinerProfilUtilisateur(scoreEngagement);
-            metriques.setProfilUtilisateur(profilUtilisateur);
-            
-            // 6. Mise à jour des termes de recherche fréquents
-            List<String> termesFrequents = recherches.stream()
-                .collect(Collectors.groupingBy(
-                    HistoriqueRecherche::getTerme,
-                    Collectors.counting()
-                ))
-                .entrySet().stream()
-                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
-                .limit(10)
-                .map(Map.Entry::getKey)
-                .collect(Collectors.toList());
-            metriques.setTermesRechercheFrequents(termesFrequents);
-            
+            metriques.setProfilUtilisateur(determinerProfilUtilisateur(scoreEngagement));
+
+            // 5. Score de prédictibilité (mis à jour dans Metriques ou un nouveau champ)
+            Double scorePredictibilite = calculerScorePredictibiliteSimplifiee(interactions, recherches);
+            metriques.setScoreRecommandation(scorePredictibilite);
+            Double scoreRecommandationCalcule = calculerScoreRecommandation(interactions, recherches, comportement);
+            metriques.setScoreRecommandation(scoreRecommandationCalcule); 
+
+            // 6. Anomalies comportementales
+            List<String> anomaliesDetectees = detecterAnomalies(interactions, recherches, comportement);
+            if (metriques != null) { 
+                metriques.setAnomaliesDetectees(anomaliesDetectees); 
+            }
+
             // 7. Mise à jour des fréquences d'actions
             Map<String, Integer> frequences = new HashMap<>();
             interactions.forEach(interaction -> {
@@ -466,32 +542,22 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
                 frequences.put(type, frequences.getOrDefault(type, 0) + 1);
             });
             metriques.setFrequenceActions(frequences);
-            
-            // 8. Calcul du taux de recherches fructueuses
+
+            // 8. Calcul du taux de recherches fructueuses et nombre total de recherches
+            metriques.setNombreRecherchesTotales(recherches.size());
             if (!recherches.isEmpty()) {
                 long recherchesFructueuses = recherches.stream()
-                    .filter(r -> Boolean.TRUE.equals(r.getRechercheFructueuse()))
-                    .count();
+                        .filter(r -> Boolean.TRUE.equals(r.getRechercheFructueuse()))
+                        .count();
                 double tauxFructueuses = (double) recherchesFructueuses / recherches.size() * 100;
                 metriques.setTauxRecherchesFructueuses(tauxFructueuses);
             }
-            
-            // 9. Mise à jour du nombre total de recherches
-            metriques.setNombreRecherchesTotales(recherches.size());
-            
-            // Sauvegarder les métriques mises à jour
-            comportement.setMetriques(metriques);
-            
-            // Mettre à jour la date de dernière analyse
+
             comportement.setDateMiseAJour(LocalDateTime.now());
-            
-            // Sauvegarder et retourner le comportement mis à jour
             return updateBehavior(comportement);
-            
+
         } catch (Exception e) {
             logger.error("Erreur lors de l'analyse des patterns pour l'utilisateur {}: {}", userId, e.getMessage(), e);
-            
-            // En cas d'erreur, retourner le comportement existant ou créer un nouveau
             ComportementUtilisateur comportement = getOrCreateBehavior(userId);
             comportement.setDateMiseAJour(LocalDateTime.now());
             return updateBehavior(comportement);
@@ -503,33 +569,17 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
         Map<String, Object> patterns = new HashMap<>();
 
         try {
-            // Récupérer les données de l'utilisateur
             List<InteractionUtilisateur> interactions = interactionService.getInteractionsByUserId(userId);
             List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoryByUserId(userId);
             ComportementUtilisateur comportement = getOrCreateBehavior(userId);
 
-            // 1. Patterns temporels
             patterns.put("patternsTemporels", analyserPatternsTemporels(interactions, recherches));
-
-            // 2. Patterns de navigation
             patterns.put("patternsNavigation", analyserPatternsNavigation(interactions));
-
-            // 3. Patterns de recherche
             patterns.put("patternsRecherche", analyserPatternsRecherche(recherches));
-
-            // 4. Patterns de session
             patterns.put("patternsSessions", analyserPatternsSessions(interactions, recherches));
-
-            // 5. Préférences utilisateur
             patterns.put("preferences", analyserPreferences(interactions, recherches));
-
-            // 6. Séquences d'actions fréquentes
             patterns.put("sequencesFrequentes", analyserSequencesActions(interactions));
-
-            // 7. Anomalies comportementales
             patterns.put("anomalies", detecterAnomalies(interactions, recherches, comportement));
-
-            // 8. Score de prédictibilité
             patterns.put("scorePredictibilite", calculerScorePredictibiliteSimplifiee(interactions, recherches));
 
         } catch (Exception e) {
@@ -537,7 +587,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             patterns.put("erreur", "Erreur lors de l'analyse des patterns: " + e.getMessage());
         }
 
-        // Retourner le DTO au lieu de l'objet AnalysePatterns
         return new AnalysePatternsDTO(patterns);
     }
 
@@ -552,7 +601,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
                                                           List<HistoriqueRecherche> recherches) {
         Map<String, Object> patternsTemporels = new HashMap<>();
 
-        // Activité par heure de la journée
         Map<Integer, Long> activiteParHeure = new HashMap<>();
         interactions.stream()
             .filter(i -> i.getDateInteraction() != null)
@@ -562,7 +610,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             .forEach(r -> activiteParHeure.merge(r.getDateRecherche().getHour(), 1L, Long::sum));
         patternsTemporels.put("activiteParHeure", activiteParHeure);
 
-        // Activité par jour de la semaine
         Map<DayOfWeek, Long> activiteParJourSemaine = new HashMap<>();
         interactions.stream()
             .filter(i -> i.getDateInteraction() != null)
@@ -570,10 +617,8 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
         recherches.stream()
             .filter(r -> r.getDateRecherche() != null)
             .forEach(r -> activiteParJourSemaine.merge(r.getDateRecherche().getDayOfWeek(), 1L, Long::sum));
-        patternsTemporels.put("activiteParJourSemaine", activiteParJourSemaine.entrySet().stream()
-            .collect(Collectors.toMap(e -> e.getKey().toString(), Map.Entry::getValue)));
+        patternsTemporels.put("activiteParJourSemaine", activiteParJourSemaine);
 
-        // Pics d'activité (heure et jour les plus actifs)
         Optional<Map.Entry<Integer, Long>> heurePic = activiteParHeure.entrySet().stream()
             .max(Map.Entry.comparingByValue());
         heurePic.ifPresent(entry -> patternsTemporels.put("heurePicActivite", entry.getKey()));
@@ -581,7 +626,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
         Optional<Map.Entry<DayOfWeek, Long>> jourPic = activiteParJourSemaine.entrySet().stream()
             .max(Map.Entry.comparingByValue());
         jourPic.ifPresent(entry -> patternsTemporels.put("jourPicActivite", entry.getKey().toString()));
-
 
         return patternsTemporels;
     }
@@ -595,7 +639,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     private Map<String, Object> analyserPatternsNavigation(List<InteractionUtilisateur> interactions) {
         Map<String, Object> patternsNavigation = new HashMap<>();
 
-        // Types d'interaction fréquents
         Map<String, Long> typesInteractionFrequents = interactions.stream()
             .collect(Collectors.groupingBy(
                 InteractionUtilisateur::getTypeInteraction,
@@ -611,13 +654,12 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
                 LinkedHashMap::new
             )));
 
-        // Entités les plus consultées (si entiteInteraction est rempli)
         Map<String, Long> entitesConsulteesFrequentes = interactions.stream()
-        	    .filter(i -> i.getEntiteId() != null) 
-        	    .collect(Collectors.groupingBy(
-        	        i -> i.getEntiteId().toString(), 
-        	        Collectors.counting()
-        	    ));
+            .filter(i -> i.getEntiteId() != null)
+            .collect(Collectors.groupingBy(
+                i -> i.getEntiteId().toString(),
+                Collectors.counting()
+            ));
         patternsNavigation.put("entitesConsulteesFrequentes", entitesConsulteesFrequentes.entrySet().stream()
             .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
             .limit(5)
@@ -628,7 +670,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
                 LinkedHashMap::new
             )));
 
-        // Durée moyenne de consultation par type d'interaction
         Map<String, Double> dureeMoyenneParType = interactions.stream()
             .filter(i -> i.getDureeConsultation() != null)
             .collect(Collectors.groupingBy(
@@ -649,7 +690,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     private Map<String, Object> analyserPatternsRecherche(List<HistoriqueRecherche> recherches) {
         Map<String, Object> patternsRecherche = new HashMap<>();
 
-        // Termes de recherche fréquents (déjà calculé dans updateMetrics, mais ici pour l'analyse spécifique)
         patternsRecherche.put("termesRechercheFrequents", recherches.stream()
             .collect(Collectors.groupingBy(
                 HistoriqueRecherche::getTerme,
@@ -661,7 +701,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             .map(Map.Entry::getKey)
             .collect(Collectors.toList()));
 
-        // Utilisation des filtres
         Map<String, Long> utilisationFiltres = recherches.stream()
             .flatMap(r -> r.getFiltres() != null ? r.getFiltres().stream() : null)
             .filter(Objects::nonNull)
@@ -671,7 +710,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             ));
         patternsRecherche.put("utilisationFiltres", utilisationFiltres);
 
-        // Taux de recherches fructueuses
         long recherchesFructueuses = recherches.stream()
             .filter(r -> Boolean.TRUE.equals(r.getRechercheFructueuse()))
             .count();
@@ -685,8 +723,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     /**
      * Analyse les patterns de session de l'utilisateur.
      * Inclut la durée moyenne des sessions et le nombre d'interactions par session.
-     * Note: La notion de "session" doit être définie (ex: interactions espacées de moins de X minutes).
-     * Pour cet exemple, nous allons simplifier en considérant des sessions basées sur l'intervalle temporel.
      * @param interactions Liste des interactions de l'utilisateur.
      * @param recherches Liste des recherches de l'utilisateur.
      * @return Map contenant les patterns de session.
@@ -695,7 +731,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
                                                         List<HistoriqueRecherche> recherches) {
         Map<String, Object> patternsSessions = new HashMap<>();
 
-        // Combiner et trier toutes les activités par date
         List<LocalDateTime> toutesActivites = new ArrayList<>();
         interactions.stream()
             .filter(i -> i.getDateInteraction() != null)
@@ -713,8 +748,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             return patternsSessions;
         }
 
-        // Définir une session par un intervalle de temps (ex: 30 minutes sans activité)
-        long SESSION_INACTIVITY_THRESHOLD_MINUTES = 30;
         List<Double> dureesSessions = new ArrayList<>();
         List<Integer> activitesParSession = new ArrayList<>();
 
@@ -727,7 +760,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
                 LocalDateTime currentTime = toutesActivites.get(i);
 
                 if (java.time.Duration.between(prevTime, currentTime).toMinutes() > SESSION_INACTIVITY_THRESHOLD_MINUTES) {
-                    // Nouvelle session
                     dureesSessions.add((double) java.time.Duration.between(debutSession, prevTime).toMinutes());
                     activitesParSession.add(countActivites);
                     debutSession = currentTime;
@@ -736,7 +768,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
                     countActivites++;
                 }
             }
-            // Ajouter la dernière session
             dureesSessions.add((double) java.time.Duration.between(debutSession, toutesActivites.get(toutesActivites.size() - 1)).toMinutes());
             activitesParSession.add(countActivites);
         }
@@ -757,13 +788,12 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
                                                     List<HistoriqueRecherche> recherches) {
         Map<String, Object> preferences = new HashMap<>();
 
-        // Préférences d'entités/catégories (basées sur entiteInteraction)
         Map<String, Long> entitesPreferees = interactions.stream()
-        	    .filter(i -> i.getEntiteId() != null) 
-        	    .collect(Collectors.groupingBy(
-        	        i -> i.getEntiteId().toString(), 
-        	        Collectors.counting()
-        	    ));
+            .filter(i -> i.getEntiteId() != null)
+            .collect(Collectors.groupingBy(
+                i -> i.getEntiteId().toString(),
+                Collectors.counting()
+            ));
         preferences.put("entitesPreferees", entitesPreferees.entrySet().stream()
             .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
             .limit(5)
@@ -774,7 +804,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
                 LinkedHashMap::new
             )));
 
-        // Préférences de filtres de recherche
         Map<String, Long> filtresPreferes = recherches.stream()
             .flatMap(r -> r.getFiltres() != null ? r.getFiltres().stream() : null)
             .filter(Objects::nonNull)
@@ -792,7 +821,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
                 LinkedHashMap::new
             )));
 
-        // Type d'interaction dominant
         Optional<Map.Entry<String, Long>> typeInteractionDominant = interactions.stream()
             .collect(Collectors.groupingBy(
                 InteractionUtilisateur::getTypeInteraction,
@@ -802,14 +830,28 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             .max(Map.Entry.comparingByValue());
         typeInteractionDominant.ifPresent(entry -> preferences.put("typeInteractionDominant", entry.getKey()));
 
+        // Analyse et ajout des catégories préférées
+        
+        Map<String, Long> categoriesInteractedWith = interactions.stream()
+                .filter(i -> i.getEntiteId() != null) 
+                .map(InteractionUtilisateur::getTypeInteraction) 
+                .filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(
+                        type -> type, 
+                        Collectors.counting()
+                ));
+        List<String> topCategories = categoriesInteractedWith.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(5)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+        preferences.put("categoriesPreferees", topCategories);
+
         return preferences;
     }
 
     /**
      * Analyse les séquences d'actions fréquentes de l'utilisateur.
-     * Ex: Recherche -> Clic sur résultat -> Ajout aux favoris.
-     * Cette implémentation est simplifiée et se concentrera sur des paires d'actions.
-     * Pour des séquences plus complexes (séquences de Markov, etc.), une librairie dédiée ou un algorithme plus robuste serait nécessaire.
      * @param interactions Liste des interactions de l'utilisateur.
      * @return Liste de chaînes de caractères représentant les séquences fréquentes.
      */
@@ -820,7 +862,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             return sequencesFrequentes;
         }
 
-        // Tri des interactions par date
         List<InteractionUtilisateur> sortedInteractions = interactions.stream()
             .filter(i -> i.getDateInteraction() != null)
             .sorted(Comparator.comparing(InteractionUtilisateur::getDateInteraction))
@@ -832,14 +873,12 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             InteractionUtilisateur current = sortedInteractions.get(i);
             InteractionUtilisateur next = sortedInteractions.get(i + 1);
 
-            // Considérer des actions consécutives dans une courte fenêtre de temps (ex: 5 minutes)
             if (java.time.Duration.between(current.getDateInteraction(), next.getDateInteraction()).toMinutes() <= 5) {
                 String paire = current.getTypeInteraction() + " -> " + next.getTypeInteraction();
                 pairesActions.merge(paire, 1L, Long::sum);
             }
         }
 
-        // Sélectionner les 5 paires d'actions les plus fréquentes
         sequencesFrequentes = pairesActions.entrySet().stream()
             .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
             .limit(5)
@@ -848,11 +887,11 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
 
         return sequencesFrequentes;
     }
+    
+ // Méthodes utilitaires pour les conversions de Map en toute sécurité
 
     /**
      * Détecte les anomalies comportementales chez l'utilisateur.
-     * Ceci est un exemple simplifié. Des modèles de ML seraient nécessaires pour une détection robuste.
-     * Exemples d'anomalies : pic soudain d'activité, activité en dehors des heures habituelles, recherches inhabituelles.
      * @param interactions Liste des interactions de l'utilisateur.
      * @param recherches Liste des recherches de l'utilisateur.
      * @param comportement L'objet ComportementUtilisateur.
@@ -863,9 +902,8 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
                                            ComportementUtilisateur comportement) {
         List<String> anomalies = new ArrayList<>();
 
-        // Anomalie 1: Pic d'activité inhabituel (par rapport à la moyenne)
         double moyenneActiviteParJour = (interactions.size() + recherches.size()) / (double) java.time.Duration.between(comportement.getDateCreation(), LocalDateTime.now()).toDays();
-        if (moyenneActiviteParJour == 0) moyenneActiviteParJour = 1.0; // Évite la division par zéro
+        if (moyenneActiviteParJour == 0) moyenneActiviteParJour = 1.0;
 
         long activiteDernierJour = interactions.stream()
             .filter(i -> i.getDateInteraction() != null && i.getDateInteraction().toLocalDate().isEqual(LocalDateTime.now().toLocalDate()))
@@ -874,11 +912,10 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             .filter(r -> r.getDateRecherche() != null && r.getDateRecherche().toLocalDate().isEqual(LocalDateTime.now().toLocalDate()))
             .count();
 
-        if (activiteDernierJour > (moyenneActiviteParJour * 3)) { // 3x la moyenne quotidienne
+        if (activiteDernierJour > (moyenneActiviteParJour * 3)) {
             anomalies.add("Pic d'activité inhabituel détecté aujourd'hui.");
         }
 
-        // Anomalie 2: Activité en dehors des heures habituelles (très tôt le matin, très tard la nuit)
         Map<Integer, Long> activiteParHeure = new HashMap<>();
         interactions.stream()
             .filter(i -> i.getDateInteraction() != null)
@@ -892,84 +929,36 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
                             activiteParHeure.getOrDefault(4, 0L) + activiteParHeure.getOrDefault(5, 0L);
         long totalActivite = activiteParHeure.values().stream().mapToLong(Long::longValue).sum();
 
-        if (totalActivite > 0 && (double) activiteNuit / totalActivite > 0.2) { // Plus de 20% de l'activité la nuit
+        if (totalActivite > 0 && (double) activiteNuit / totalActivite > 0.2) {
             anomalies.add("Activité significative détectée en dehors des heures normales (nuit).");
         }
-
         
-        List<String> termesFrequents = comportement.getMetriques() != null ? comportement.getMetriques().getTermesRechercheFrequents() : new ArrayList<>();
+        List<String> termesFrequents = (comportement.getMetriques() != null && comportement.getMetriques().getTermesRechercheFrequents() != null) ?
+                                       comportement.getMetriques().getTermesRechercheFrequents() : new ArrayList<>();
         Optional<HistoriqueRecherche> derniereRecherche = recherches.stream()
             .max(Comparator.comparing(HistoriqueRecherche::getDateRecherche));
 
         if (derniereRecherche.isPresent() && !termesFrequents.contains(derniereRecherche.get().getTerme())) {
-            // Ici, vous pourriez ajouter une logique plus complexe pour vérifier la "sensibilité" ou "l'anormalité" du terme
             anomalies.add("Nouveau terme de recherche inhabituel détecté: '" + derniereRecherche.get().getTerme() + "'.");
         }
-
 
         return anomalies;
     }
 
     /**
      * Calcule un score de prédictibilité du comportement de l'utilisateur.
-     * Un score élevé indique que le comportement de l'utilisateur est prévisible (suit des patterns).
-     * Un score faible indique un comportement plus aléatoire ou nouveau.
-     * Ceci est un calcul heuristique.
      * @param interactions Liste des interactions de l'utilisateur.
      * @param recherches Liste des recherches de l'utilisateur.
      * @return Score de prédictibilité (0-100).
      */
- // Méthodes utilitaires à ajouter dans votre classe ComportementUtilisateurServiceImpl
-
-    /**
-     * Convertit de manière sécurisée un Object en Map<String, Long>
-     * @param obj L'objet à convertir
-     * @return Map<String, Long> ou une map vide si la conversion échoue
-     */
-    @SuppressWarnings("unchecked")
-    private Map<String, Long> safeConvertToStringLongMap(Object obj) {
-        Map<String, Long> result = new HashMap<>();
-        if (obj instanceof Map) {
-            Map<?, ?> rawMap = (Map<?, ?>) obj;
-            for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
-                if (entry.getKey() instanceof String && entry.getValue() instanceof Long) {
-                    result.put((String) entry.getKey(), (Long) entry.getValue());
-                }
-            }
-        }
-        return result;
-    }
-
-    /**
-     * Convertit de manière sécurisée un Object en Map<Integer, Long>
-     * @param obj L'objet à convertir
-     * @return Map<Integer, Long> ou une map vide si la conversion échoue
-     */
-    @SuppressWarnings("unchecked")
-    private Map<Integer, Long> safeConvertToIntegerLongMap(Object obj) {
-        Map<Integer, Long> result = new HashMap<>();
-        if (obj instanceof Map) {
-            Map<?, ?> rawMap = (Map<?, ?>) obj;
-            for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
-                if (entry.getKey() instanceof Integer && entry.getValue() instanceof Long) {
-                    result.put((Integer) entry.getKey(), (Long) entry.getValue());
-                }
-            }
-        }
-        return result;
-    }
-
-    // Version simplifiée de calculerScorePredictibilite avec les méthodes utilitaires
     private Double calculerScorePredictibiliteSimplifiee(List<InteractionUtilisateur> interactions,
                                                          List<HistoriqueRecherche> recherches) {
         double score = 0.0;
         int maxScore = 100;
 
-        // Pondération de la cohérence des patterns temporels
         Map<String, Object> patternsTemporels = analyserPatternsTemporels(interactions, recherches);
         Map<Integer, Long> activiteParHeure = safeConvertToIntegerLongMap(patternsTemporels.get("activiteParHeure"));
 
-        // Correction : calcul correct de l'écart-type
         if (!activiteParHeure.isEmpty()) {
             double moyenne = activiteParHeure.values().stream()
                 .mapToDouble(Long::doubleValue)
@@ -985,7 +974,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             score += Math.max(0, 10 - ecartType);
         }
 
-        // Récupération de l'userId
         Long userId = null;
         if (!interactions.isEmpty()) {
             userId = interactions.get(0).getUserId();
@@ -1002,7 +990,6 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             }
         }
 
-        // Pondération de la cohérence des types d'interaction
         Map<String, Object> patternsNavigation = analyserPatternsNavigation(interactions);
         Map<String, Long> typesInteractionFrequents = safeConvertToStringLongMap(patternsNavigation.get("typesInteractionFrequents"));
         
@@ -1016,11 +1003,9 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             }
         }
 
-        // Pondération des séquences d'actions fréquentes
         List<String> sequencesFrequentes = analyserSequencesActions(interactions);
         score += sequencesFrequentes.size() * 5;
 
-        // Inversement proportionnel aux anomalies
         if (userId != null) {
             ComportementUtilisateur comportement = getOrCreateBehavior(userId);
             List<String> anomalies = detecterAnomalies(interactions, recherches, comportement);
@@ -1028,5 +1013,140 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
         }
 
         return Math.max(0, Math.min(maxScore, score));
+    }
+
+    /**
+     * Convertit un objet en une Map<Integer, Long> de manière sûre,
+     * en gérant les casts non vérifiés et les types de valeurs Long/Integer.
+     * Cette méthode est utilisée pour les données comme 'activiteParHeure'.
+     * @param obj L'objet à convertir.
+     * @return Une Map<Integer, Long> convertie, ou une Map vide si la conversion échoue.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<Integer, Long> safeConvertToIntegerLongMap(Object obj) {
+        Map<Integer, Long> result = new HashMap<>();
+        if (obj instanceof Map) {
+            Map<?, ?> rawMap = (Map<?, ?>) obj;
+            for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
+                // Vérifie si la clé est un Integer
+                if (entry.getKey() instanceof Integer) {
+                    // Vérifie si la valeur est un Long
+                    if (entry.getValue() instanceof Long) {
+                        result.put((Integer) entry.getKey(), (Long) entry.getValue());
+                    } 
+                    // Ou si la valeur est un Integer et peut être convertie en Long
+                    else if (entry.getValue() instanceof Integer) {
+                        result.put((Integer) entry.getKey(), ((Integer) entry.getValue()).longValue());
+                    }
+                } else {
+                    // Log un avertissement si la clé n'est pas du type attendu
+                    logger.warn("Clé de type inattendu dans safeConvertToIntegerLongMap: {} (attendu Integer)", entry.getKey() != null ? entry.getKey().getClass().getName() : "null");
+                }
+            }
+        } else {
+            // Log un avertissement si l'objet n'est pas une Map
+            logger.warn("Objet de type inattendu dans safeConvertToIntegerLongMap: {} (attendu Map)", obj != null ? obj.getClass().getName() : "null");
+        }
+        return result;
+    }
+
+    /**
+     * Convertit un objet en une Map<String, Integer> de manière sûre.
+     * @param obj L'objet à convertir.
+     * @return Une Map<String, Integer> convertie, ou une Map vide si la conversion échoue.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Integer> safeConvertToStringIntegerMap(Object obj) {
+        Map<String, Integer> result = new HashMap<>();
+        if (obj instanceof Map) {
+            Map<?, ?> rawMap = (Map<?, ?>) obj;
+            for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
+                if (entry.getKey() instanceof String) {
+                    if (entry.getValue() instanceof Integer) {
+                        result.put((String) entry.getKey(), (Integer) entry.getValue());
+                    } else if (entry.getValue() instanceof Long) {
+                        Long val = (Long) entry.getValue();
+                        if (val <= Integer.MAX_VALUE && val >= Integer.MIN_VALUE) {
+                            result.put((String) entry.getKey(), val.intValue());
+                        } else {
+                            logger.warn("La valeur Long {} dépasse la capacité de Integer pour la clé {}", val, entry.getKey());
+                        }
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Convertit un objet en une Map<String, Long> de manière sûre.
+     * @param obj L'objet à convertir.
+     * @return Une Map<String, Long> convertie, ou une Map vide si la conversion échoue.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Long> safeConvertToStringLongMap(Object obj) {
+        Map<String, Long> result = new HashMap<>();
+        if (obj instanceof Map) {
+            Map<?, ?> rawMap = (Map<?, ?>) obj;
+            for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
+                if (entry.getKey() instanceof String) {
+                    if (entry.getValue() instanceof Long) {
+                        result.put((String) entry.getKey(), (Long) entry.getValue());
+                    } else if (entry.getValue() instanceof Integer) {
+                        result.put((String) entry.getKey(), ((Integer) entry.getValue()).longValue());
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Convertit une liste de chaînes de caractères en une Map<String, String>
+     * où les clés sont générées comme "sequence1", "sequence2", etc.
+     * Utile pour stocker des listes ordonnées de parcours favoris.
+     * @param sequences La liste de chaînes de caractères à convertir.
+     * @return Une Map<String, String> représentant les séquences.
+     */
+    private Map<String, String> safeConvertToStringStringMap(List<String> sequences) {
+        Map<String, String> result = new LinkedHashMap<>(); 
+        if (sequences != null) {
+            for (int i = 0; i < sequences.size(); i++) {
+                result.put("sequence" + (i + 1), sequences.get(i));
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Calcule le score de recommandation basé sur l'engagement et la diversité des interactions.
+     * C'est une méthode d'exemple, à adapter selon vos critères réels.
+     */
+    private Double calculerScoreRecommandation(List<InteractionUtilisateur> interactions,
+                                              List<HistoriqueRecherche> recherches,
+                                              ComportementUtilisateur comportement) {
+        double scoreRecommandation = 0.0;
+
+        // Plus l'utilisateur est engagé, plus le score est élevé
+        scoreRecommandation += comportement.getMetriques().getScoreEngagement() * 0.5;
+
+        // Bonus pour la diversité des interactions
+        Set<String> typesInteractionsUniques = interactions.stream()
+            .map(InteractionUtilisateur::getTypeInteraction)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+        scoreRecommandation += typesInteractionsUniques.size() * 5; 
+
+        // Bonus pour les recherches fructueuses
+        long fructueuses = recherches.stream().filter(HistoriqueRecherche::getRechercheFructueuse).count();
+        scoreRecommandation += fructueuses * 0.2;
+
+        // Bonus si les préférences saisonnières sont remplies (indique un profil plus complet)
+        if (comportement.getPreferencesSaisonnieres() != null &&
+            comportement.getPreferencesSaisonnieres().getSaisonPreferee() != null) {
+            scoreRecommandation += 10;
+        }
+
+        return Math.min(100.0, scoreRecommandation); // Limiter le score à 100
     }
 }

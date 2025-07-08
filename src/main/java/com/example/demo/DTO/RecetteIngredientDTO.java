@@ -8,5 +8,5 @@ public class RecetteIngredientDTO {
     private Long ingredientEntityId;
     private String quantite;
     private String instruction;
+    private String ingredientName;
 }
-

@@ -17,10 +17,10 @@ import lombok.AllArgsConstructor;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
-/**
- * Entité représentant le comportement d'un utilisateur
- * Stocke les patterns, préférences et métriques comportementales
- */
+import com.example.demo.entiesMongodb.enums.Saison;
+import com.example.demo.entiesMongodb.enums.ProfilUtilisateur;
+import com.example.demo.entiesMongodb.enums.ComplexiteRecette;
+
 @Document(collection = "comportement_utilisateur")
 @Data
 @Builder
@@ -67,9 +67,8 @@ public class ComportementUtilisateur {
         private List<String> ingredientsEte;
         private List<String> ingredientsAutomne;
         private List<String> ingredientsHiver;
-        private String saisonPreferee;
+        private Saison saisonPreferee;
         
-        // Scores de préférence par saison (0-100)
         private Map<String, Double> scoresPreferenceSaisonniere;
         
         // Dernière mise à jour des préférences
@@ -83,16 +82,16 @@ public class ComportementUtilisateur {
     @AllArgsConstructor
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class HabitudesNavigation {
-        private Map<String, Integer> pagesVisitees; 
-        private Map<String, Long> tempsParPage; 
+        private Map<String, Integer> pagesVisitees;
+        private Map<String, Long> tempsParPage;
         private List<String> recherchesFavorites;
         private String typeRecettePreferee;
         private Integer nombreConnexionsParJour;
         private List<String> heuresConnexionHabituelles;
         
         // Patterns de navigation
-        private Map<String, String> parcoursFavoris; 
-        private Double tempsMoyenParSession; 
+        private Map<String, String> parcoursFavoris;
+        private Double tempsMoyenParSession;
         private Integer nombrePagesParSession;
         
         // Préférences de contenu
@@ -134,11 +133,10 @@ public class ComportementUtilisateur {
         private Integer frequenceConsultation;
         private Boolean actif;
         
-        // Nouvelles propriétés
         private Double dureMoyenneConsultation; // en minutes
         private List<String> ingredientsFavoris;
-        private Map<String, Integer> complexitePreferee; // facile/moyen/difficile -> score
-    }
+        private Map<ComplexiteRecette, Integer> complexitePreferee;
+        }
 
     // Classe pour compatibilité avec l'implémentation existante
     @Data
@@ -154,11 +152,14 @@ public class ComportementUtilisateur {
         private List<String> termesRechercheFrequents;
         private Double tauxRecherchesFructueuses;
         private Double scoreEngagement;
-        private String profilUtilisateur; // nouveau, débutant, occasionnel, actif, fidèle
+        private ProfilUtilisateur profilUtilisateur;
         private Map<String, Integer> frequenceActions;
         
         // Métriques étendues
-        private Double scoreRecommandation; // pertinence des recommandations
+        private Double scoreRecommandation; 
+        private Double scorePredictibilite; 
+        private List<String> anomaliesDetectees;
+
         private Map<String, Double> tendancesTemporelles; // évolution des comportements
         private Integer streakConnexion; // jours consécutifs d'activité
         private LocalDateTime derniereActivite;
@@ -173,11 +174,11 @@ public class ComportementUtilisateur {
     
     public boolean estNouvelUtilisateur() {
         return metriques == null || 
-               "nouveau".equals(metriques.getProfilUtilisateur()) ||
+               ProfilUtilisateur.NOUVEAU.equals(metriques.getProfilUtilisateur()) || 
                (dateCreation != null && dateCreation.isAfter(LocalDateTime.now().minusDays(7)));
     }
     
-    public String getSaisonActuelle() {
+    public Saison getSaisonActuelle() { 
         if (preferencesSaisonnieres != null) {
             return preferencesSaisonnieres.getSaisonPreferee();
         }

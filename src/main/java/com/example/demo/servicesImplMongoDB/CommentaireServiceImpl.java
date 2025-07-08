@@ -3,9 +3,12 @@ package com.example.demo.servicesImplMongoDB;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
+import com.example.demo.DTO.CommentaireRequestDTO;
+import com.example.demo.DTO.CommentaireResponseDTO;
 import com.example.demo.entiesMongodb.CommentaireDocument;
 import com.example.demo.repositoryMongoDB.CommentaireMongoRepository;
 import com.example.demo.servicesMongoDB.CommentaireService;
@@ -19,51 +22,64 @@ public class CommentaireServiceImpl implements CommentaireService {
         this.commentaireRepository = commentaireRepository;
     }
 
-    @Override
-    public List<CommentaireDocument> getAllCommentaireEntity() {
-        return commentaireRepository.findAll();
+    private CommentaireResponseDTO convertToResponseDTO(CommentaireDocument document) {
+        return new CommentaireResponseDTO(
+            document.getId(),
+            document.getContenu(),
+            document.getDateCommentaire(),
+            document.getUserId(),
+            document.getUserName()
+        );
     }
 
     @Override
-    public CommentaireDocument addCommentaireEntity(CommentaireDocument commentaireEntity) {
-        if (commentaireEntity.getDateCommentaire() == null) {
-            commentaireEntity.setDateCommentaire(LocalDateTime.now());
-        }
-
-        if (commentaireEntity.getUserId() == null) {
-            commentaireEntity.setUserId("defaultUserId");
-        }
-
-        if (commentaireEntity.getUserName() == null) {
-            commentaireEntity.setUserName("Anonymous");
-        }
-
-        return commentaireRepository.save(commentaireEntity);
-    }
-
-
-    @Override
-    public Optional<CommentaireDocument> getCommentaireById(String id) { 
-        return commentaireRepository.findById(id); 
+    public List<CommentaireResponseDTO> getAllCommentaires() {
+        return commentaireRepository.findAll().stream()
+                .map(this::convertToResponseDTO) 
+                .collect(Collectors.toList());
     }
 
     @Override
-    public CommentaireDocument updateCommentaire(String id, CommentaireDocument commentaireEntity) { 
-        Optional<CommentaireDocument> existingCommentaire = commentaireRepository.findById(id); 
+    public CommentaireResponseDTO addCommentaire(CommentaireRequestDTO commentaireDto) {
+        CommentaireDocument commentaireDocument = new CommentaireDocument();
+        commentaireDocument.setContenu(commentaireDto.getContenu());
+        commentaireDocument.setUserId(commentaireDto.getUserId());
+        commentaireDocument.setUserName(commentaireDto.getUserName());
+        commentaireDocument.setDateCommentaire(LocalDateTime.now()); 
         
+        if (commentaireDocument.getUserId() == null) {
+            commentaireDocument.setUserId("defaultUserId");
+        }
+        if (commentaireDocument.getUserName() == null) {
+            commentaireDocument.setUserName("Anonymous");
+        }
+
+        CommentaireDocument savedDocument = commentaireRepository.save(commentaireDocument);
+        return convertToResponseDTO(savedDocument); 
+    }
+
+    @Override
+    public Optional<CommentaireResponseDTO> getCommentaireById(String id) {
+        return commentaireRepository.findById(id).map(this::convertToResponseDTO);
+    }
+
+    @Override
+    public CommentaireResponseDTO updateCommentaire(String id, CommentaireRequestDTO commentaireDto) {
+        Optional<CommentaireDocument> existingCommentaire = commentaireRepository.findById(id);
+
         if (existingCommentaire.isPresent()) {
             CommentaireDocument updatedCommentaire = existingCommentaire.get();
-            updatedCommentaire.setContenu(commentaireEntity.getContenu());
-            updatedCommentaire.setDateCommentaire(commentaireEntity.getDateCommentaire());
-            
-            return commentaireRepository.save(updatedCommentaire);
+            updatedCommentaire.setContenu(commentaireDto.getContenu());
+
+            CommentaireDocument savedDocument = commentaireRepository.save(updatedCommentaire);
+            return convertToResponseDTO(savedDocument);
         } else {
             throw new RuntimeException("Commentaire not found with id: " + id);
         }
     }
 
     @Override
-    public void deleteCommentaire(String id) { 
-        commentaireRepository.deleteById(id); 
+    public void deleteCommentaire(String id) {
+        commentaireRepository.deleteById(id);
     }
 }

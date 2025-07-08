@@ -22,11 +22,12 @@ public class UserController {
     public UserController(UserService userService) {
         this.userService = userService;
     }
-
+    
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')") 
     public ResponseEntity<List<UserEntity>> getAllUsers() {
-        return ResponseEntity.ok(userService.getAllUsers());
+        List<UserEntity> users = userService.getAllUsers(); 
+        return ResponseEntity.ok(users);
     }
 
     @GetMapping("/{id}")

@@ -156,6 +156,13 @@
 			<version>4.0.0</version>
 			<scope>runtime</scope>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.sonarsource.api.plugin/sonar-plugin-api -->
+<dependency>
+    <groupId>org.sonarsource.sonarqube</groupId>
+    <artifactId>sonar-plugin-api</artifactId>
+    <version>9.4.0.54424</version>
+    <scope>provided</scope>
+</dependency>
 	</dependencies>
 
 	<build>
