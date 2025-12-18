@@ -2,6 +2,8 @@ package com.example.demo.entitiesMysql;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -45,6 +47,7 @@ public class UserEntity {
     private String role = "USER";
 
     @OneToMany(mappedBy = "userEntity", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore 
     private List<RecetteEntity> recettes;
 
 }

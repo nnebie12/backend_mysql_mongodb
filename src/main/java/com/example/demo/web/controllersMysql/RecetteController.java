@@ -1,6 +1,7 @@
 package com.example.demo.web.controllersMysql;
 
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map; 
 
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.demo.DTO.CommentaireRequestDTO;
 import com.example.demo.DTO.CommentaireResponseDTO;
@@ -23,7 +25,9 @@ import com.example.demo.DTO.NoteResponseDTO;
 import com.example.demo.DTO.RecetteIngredientDTO;
 import com.example.demo.DTO.RecetteRequestDTO;
 import com.example.demo.DTO.RecetteResponseDTO;
-
+import com.example.demo.entitiesMysql.RecetteEntity;
+import com.example.demo.repositoryMysql.RecetteRepository;
+import com.example.demo.servicesMysql.ImageUploadService;
 import com.example.demo.servicesMysql.RecetteService;
 
 
@@ -32,9 +36,16 @@ import com.example.demo.servicesMysql.RecetteService;
 	public class RecetteController {
 	
 	 private final RecetteService recetteService; 
+	 
+	  private final ImageUploadService imageUploadService;
+	    
+	    
+	  private final RecetteRepository recetteRepository;
 	
-	 public RecetteController(RecetteService recetteService) {
+	 public RecetteController(RecetteService recetteService, ImageUploadService imageUploadService, RecetteRepository recetteRepository ) {
 	     this.recetteService = recetteService;
+	     this.imageUploadService = imageUploadService;
+	     this.recetteRepository = recetteRepository;
 	 }
 	
 	 @GetMapping("/all")
@@ -47,6 +58,28 @@ import com.example.demo.servicesMysql.RecetteService;
 	 public ResponseEntity<RecetteResponseDTO> createRecette(@RequestBody RecetteRequestDTO recetteDTO, @PathVariable Long userId) {
 	     RecetteResponseDTO savedRecette = recetteService.saveRecette(recetteDTO, userId);
 	     return new ResponseEntity<>(savedRecette, HttpStatus.CREATED);
+	 }
+	 
+	 @PostMapping("/{id}/upload-image")
+	 public ResponseEntity<RecetteResponseDTO> uploadImage(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
+	     try {
+	         // 1. Chercher l'entité
+	         RecetteEntity recette = recetteRepository.findById(id)
+	             .orElseThrow(() -> new RuntimeException("Recette non trouvée"));
+
+	         // 2. Upload Cloudinary
+	         String url = imageUploadService.uploadImage(file);
+
+	         // 3. Sauvegarder l'URL
+	         recette.setImageUrl(url);
+	         recetteRepository.save(recette);
+
+	         // 4. Retourner le DTO de la recette mise à jour
+	         RecetteResponseDTO response = recetteService.getRecetteById(id).get();
+	         return ResponseEntity.ok(response);
+	     } catch (IOException e) {
+	         return ResponseEntity.status(500).build();
+	     }
 	 }
 	
 	 @GetMapping("/{id}")

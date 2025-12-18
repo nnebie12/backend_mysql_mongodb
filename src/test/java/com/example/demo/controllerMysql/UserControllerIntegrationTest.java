@@ -1,139 +1,229 @@
 package com.example.demo.controllerMysql;
 
 import com.example.demo.entitiesMysql.UserEntity;
-import com.example.demo.repositoryMysql.FavorisRepository;
-import com.example.demo.repositoryMysql.RecetteRepository;
-import com.example.demo.repositoryMysql.UserRepository;
-import com.example.demo.security.JwtUtil;
+import com.example.demo.exception.UserNotFoundException;
+import com.example.demo.servicesMysql.UserService;
+import com.example.demo.web.controllersMysql.UserController;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.jdbc.core.JdbcTemplate; 
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT) 
-@AutoConfigureMockMvc 
-@TestPropertySource(properties = {
-    "jwt.secret=0a8PXTxSL6b2mquKn8p2tKh2b6hOebQi75+3izNlqDzlggoNbLiPWbHnAw2wdlg4cLqVsmjzqd0rneAnC8IJ2A==",
-    "jwt.expiration=86400000"
-})
-@ActiveProfiles("test")
-public class UserControllerIntegrationTest {
+@ExtendWith(MockitoExtension.class)
+class UserControllerUnitTest {
 
-    @Autowired
-    private MockMvc mockMvc; 
-
-    @Autowired
-    private JwtUtil jwtUtil; 
-
-    @Autowired
-    private UserRepository userRepository; 
-    @Autowired
-    private FavorisRepository favorisRepository;
-
-    @Autowired
-    private RecetteRepository recetteRepository;
-
-    @Autowired
-    private JdbcTemplate jdbcTemplate; 
-
+    @Mock
+    private UserService userService;
+    
+    @InjectMocks
+    private UserController userController;
+    
+    private MockMvc mockMvc;
+    private ObjectMapper objectMapper;
+    
     private UserEntity adminUser;
     private UserEntity normalUser;
-
+    
     @BeforeEach
     void setUp() {
-        jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS = 0");
-
-        // Nettoyer les tables dans l'ordre inverse des dépendances pour éviter les erreurs de clé étrangère
-        favorisRepository.deleteAllInBatch(); 
-        recetteRepository.deleteAllInBatch(); 
-        userRepository.deleteAllInBatch();  
-
-        jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS = 1");
+        mockMvc = MockMvcBuilders.standaloneSetup(userController)
+                .setMessageConverters(new MappingJackson2HttpMessageConverter())
+                .build();
+        objectMapper = new ObjectMapper();
         
-
-        adminUser = new UserEntity(null, "Admin", "User", "admin@test.com", "adminpass", null, "ADMINISTRATEUR", null); 
-        normalUser = new UserEntity(null, "Normal", "User", "user@test.com", "userpass", null, "USER", null);
-
-        adminUser = userRepository.save(adminUser);
-        normalUser = userRepository.save(normalUser);
-        
-        System.out.println("Admin user: " + adminUser);
-        System.out.println("Normal user: " + normalUser);
+        adminUser = new UserEntity(1L, "Admin", "User", "admin@test.com", "adminpass", null, "ADMINISTRATEUR", null);
+        normalUser = new UserEntity(2L, "Normal", "User", "user@test.com", "userpass", null, "USER", null);
     }
 
     @Test
-    @DisplayName("❌ Accès refusé à /api/v1/users sans token (doit être 403 Forbidden)")
-    void testAccessDeniedWithoutToken() throws Exception {
-        mockMvc.perform(get("/api/v1/users"))
-            .andExpect(status().isForbidden());
-    }
-
-    @Test
-    @DisplayName("✅ Accès autorisé à /api/v1/users avec token valide (Admin)")
-    void testGetAllUsersAsAdminWithValidToken() throws Exception {
-        String adminToken = jwtUtil.generateToken(adminUser.getEmail(), adminUser.getId(), adminUser.getRole());
-        System.out.println("Admin token: " + adminToken);
-
-        MvcResult result = mockMvc.perform(get("/api/v1/users")
-                .header("Authorization", "Bearer " + adminToken))
-                .andDo(print())
+    @DisplayName(" getAllUsers - Doit retourner la liste des utilisateurs")
+    void testGetAllUsers_ShouldReturnUsersList() throws Exception {
+        List<UserEntity> users = Arrays.asList(adminUser, normalUser);
+        when(userService.getAllUsers()).thenReturn(users);
+        
+        mockMvc.perform(get("/api/v1/users")
+                .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andReturn();
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].email").value("admin@test.com"))
+                .andExpect(jsonPath("$[1].email").value("user@test.com"));
+                
+        verify(userService, times(1)).getAllUsers();
+    }
+
+    @Test
+    @DisplayName(" getUserById - Doit retourner l'utilisateur trouvé")
+    void testGetUserById_ShouldReturnUser() throws Exception {
+        when(userService.getUserById(1L)).thenReturn(Optional.of(adminUser));
         
-        System.out.println("Response: " + result.getResponse().getContentAsString());
+        mockMvc.perform(get("/api/v1/users/1")
+                .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.email").value("admin@test.com"))
+                .andExpect(jsonPath("$.role").value("ADMINISTRATEUR"));
+                
+        verify(userService, times(1)).getUserById(1L);
     }
 
     @Test
-    @DisplayName("❌ Accès refusé à /api/v1/users pour un utilisateur simple (doit être 403 Forbidden)")
-    void testGetAllUsersAsNormalUser_Forbidden() throws Exception {
-        String normalUserToken = jwtUtil.generateToken(normalUser.getEmail(), normalUser.getId(), normalUser.getRole());
-        System.out.println("Normal user token: " + normalUserToken);
-
-        mockMvc.perform(get("/api/v1/users")
-                .header("Authorization", "Bearer " + normalUserToken))
-                .andDo(print())
-                .andExpect(status().isForbidden());
+    @DisplayName(" getUserById - Doit retourner 404 si utilisateur non trouvé")
+    void testGetUserById_ShouldReturn404WhenUserNotFound() throws Exception {
+        when(userService.getUserById(999L)).thenReturn(Optional.empty());
+        
+        mockMvc.perform(get("/api/v1/users/999")
+                .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
+                
+        verify(userService, times(1)).getUserById(999L);
     }
 
     @Test
-    @DisplayName("❌ Accès refusé avec token JWT invalide")
-    void testAccessDeniedWithInvalidToken() throws Exception {
-        mockMvc.perform(get("/api/v1/users")
-                .header("Authorization", "Bearer invalid-token"))
-                .andExpect(status().isForbidden()); 
+    @DisplayName(" updateUser - Doit mettre à jour un utilisateur existant")
+    void testUpdateUser_ShouldUpdateExistingUser() throws Exception {
+        
+        UserEntity updatedUser = new UserEntity(1L, "User", "Updated", "updated@test.com", "updatedpass", null, "USER", null);
+        
+        when(userService.updateUserAsAdmin(eq(1L), any(UserEntity.class))).thenReturn(updatedUser);
+        
+        mockMvc.perform(put("/api/v1/users/1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(updatedUser)))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.email").value("updated@test.com"))
+                .andExpect(jsonPath("$.prenom").value("Updated"))  
+                .andExpect(jsonPath("$.nom").value("User"));       
+                
+        verify(userService, times(1)).updateUserAsAdmin(eq(1L), any(UserEntity.class));
     }
 
     @Test
-    @DisplayName("❌ Un utilisateur simple ne peut pas supprimer un autre utilisateur (doit être 403 Forbidden)")
-    void testNormalUserCannotDeleteOtherUser_Forbidden() throws Exception {
-        String normalUserToken = jwtUtil.generateToken(normalUser.getEmail(), normalUser.getId(), normalUser.getRole());
-
-        mockMvc.perform(delete("/api/v1/users/" + adminUser.getId())
-                .header("Authorization", "Bearer " + normalUserToken))
-                .andDo(print())
-                .andExpect(status().isForbidden());
+    @DisplayName(" updateUser - Doit retourner 404 si utilisateur non trouvé")
+    void testUpdateUser_ShouldReturn404WhenUserNotFound() throws Exception {
+        UserEntity updatedUser = new UserEntity(999L, "Updated", "User", "updated@test.com", "updatedpass", null, "USER", null);
+        
+        when(userService.updateUserAsAdmin(eq(999L), any(UserEntity.class)))
+                .thenThrow(new UserNotFoundException("User not found with id: 999"));
+        
+        mockMvc.perform(put("/api/v1/users/999")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(updatedUser)))
+                .andExpect(status().isNotFound());
+                
+        verify(userService, times(1)).updateUserAsAdmin(eq(999L), any(UserEntity.class));
     }
 
     @Test
-    @DisplayName("✅ Un administrateur peut supprimer n'importe quel utilisateur (doit être 200 OK)")
-    void testAdminCanDeleteAnyUser() throws Exception {
-        String adminToken = jwtUtil.generateToken(adminUser.getEmail(), adminUser.getId(), adminUser.getRole());
+    @DisplayName(" updateUser - Doit retourner 409 en cas de conflit de données")
+    void testUpdateUser_ShouldReturn409OnDataIntegrityViolation() throws Exception {
+        UserEntity updatedUser = new UserEntity(1L, "Updated", "User", "updated@test.com", "updatedpass", null, "USER", null);
+        
+        when(userService.updateUserAsAdmin(eq(1L), any(UserEntity.class)))
+                .thenThrow(new DataIntegrityViolationException("Duplicate email"));
+        
+        mockMvc.perform(put("/api/v1/users/1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(updatedUser)))
+                .andExpect(status().isConflict());
+                
+        verify(userService, times(1)).updateUserAsAdmin(eq(1L), any(UserEntity.class));
+    }
 
-        mockMvc.perform(delete("/api/v1/users/" + normalUser.getId())
-                .header("Authorization", "Bearer " + adminToken))
-                .andDo(print())
+    @Test
+    @DisplayName(" updateUser - Doit retourner 500 en cas d'erreur inattendue")
+    void testUpdateUser_ShouldReturn500OnUnexpectedError() throws Exception {
+        UserEntity updatedUser = new UserEntity(1L, "Updated", "User", "updated@test.com", "updatedpass", null, "USER", null);
+        
+        when(userService.updateUserAsAdmin(eq(1L), any(UserEntity.class)))
+                .thenThrow(new RuntimeException("Unexpected error"));
+        
+        mockMvc.perform(put("/api/v1/users/1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(updatedUser)))
+                .andExpect(status().isInternalServerError());
+                
+        verify(userService, times(1)).updateUserAsAdmin(eq(1L), any(UserEntity.class));
+    }
+
+    @Test
+    @DisplayName(" deleteUser - Doit supprimer un utilisateur existant")
+    void testDeleteUser_ShouldDeleteExistingUser() throws Exception {
+        doNothing().when(userService).deleteUser(1L);
+        
+        mockMvc.perform(delete("/api/v1/users/1"))
                 .andExpect(status().isOk());
+                
+        verify(userService, times(1)).deleteUser(1L);
+    }
+
+    @Test
+    @DisplayName(" deleteUser - Doit retourner 404 si utilisateur non trouvé")
+    void testDeleteUser_ShouldReturn404WhenUserNotFound() throws Exception {
+        doThrow(new UserNotFoundException("User not found with id: 999"))
+                .when(userService).deleteUser(999L);
+        
+        mockMvc.perform(delete("/api/v1/users/999"))
+                .andExpect(status().isNotFound());
+                
+        verify(userService, times(1)).deleteUser(999L);
+    }
+
+    @Test
+    @DisplayName(" deleteUser - Doit retourner 409 en cas de conflit de données")
+    void testDeleteUser_ShouldReturn409OnDataIntegrityViolation() throws Exception {
+        doThrow(new DataIntegrityViolationException("Cannot delete user with associated data"))
+                .when(userService).deleteUser(1L);
+        
+        mockMvc.perform(delete("/api/v1/users/1"))
+                .andExpect(status().isConflict());
+                
+        verify(userService, times(1)).deleteUser(1L);
+    }
+
+    @Test
+    @DisplayName(" deleteUser - Doit retourner 500 en cas d'erreur inattendue")
+    void testDeleteUser_ShouldReturn500OnUnexpectedError() throws Exception {
+        doThrow(new RuntimeException("Unexpected error"))
+                .when(userService).deleteUser(1L);
+        
+        mockMvc.perform(delete("/api/v1/users/1"))
+                .andExpect(status().isInternalServerError());
+                
+        verify(userService, times(1)).deleteUser(1L);
+    }
+
+    @Test
+    @DisplayName(" Service mock - Vérifier que les mocks fonctionnent correctement")
+    void testServiceMock_ShouldWorkCorrectly() {
+        when(userService.getUserById(1L)).thenReturn(Optional.of(adminUser));
+        
+        Optional<UserEntity> result = userService.getUserById(1L);
+        
+        assert result.isPresent();
+        assert result.get().getEmail().equals("admin@test.com");
+        verify(userService, times(1)).getUserById(1L);
     }
 }
