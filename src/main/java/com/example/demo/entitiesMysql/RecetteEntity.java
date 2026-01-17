@@ -30,6 +30,15 @@ public class RecetteEntity {
     @Column(nullable = false)
     private String titre;
     
+    @Column(name = "cuisine")
+    private String cuisine; 
+
+    @Column(name = "type_recette")
+    private String typeRecette; 
+
+    @Column(name = "vegetarien")
+    private Boolean vegetarien; 
+    
     @Column(length = 2000)
     private String description;
     
@@ -54,6 +63,7 @@ public class RecetteEntity {
     private UserEntity userEntity;
     
     @OneToMany(mappedBy = "recetteEntity", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonBackReference
     private List<RecetteIngredientEntity> recetteIngredients = new ArrayList<>();
     
     @Column(unique = true)

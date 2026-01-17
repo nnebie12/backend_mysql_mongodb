@@ -14,6 +14,7 @@ import com.example.demo.repositoryMongoDB.ComportementUtilisateurRepository;
 import com.example.demo.repositoryMongoDB.RecommandationIARepository;
 import com.example.demo.servicesMongoDB.RecommandationIAService;
 import com.example.demo.servicesMongoDB.ComportementUtilisateurService;
+import com.example.demo.servicesMongoDB.EnhancedRecommandationService;
 import com.example.demo.servicesMongoDB.PropositionRecommandationService;
 import com.example.demo.servicesMysql.SmsService;
 
@@ -25,6 +26,7 @@ public class RecommandationIAServiceImpl implements RecommandationIAService {
     private final SmsService smsService;
     private final PropositionRecommandationService propositionRecommandationService;
     private final ComportementUtilisateurRepository comportementUtilisateurRepository;
+    private final EnhancedRecommandationService enhancedRecommendationService;
 
     @Value("${sms.recipient}")
     private String smsRecipient;
@@ -33,12 +35,13 @@ public class RecommandationIAServiceImpl implements RecommandationIAService {
                                        ComportementUtilisateurService comportementService,
                                        SmsService smsService,
                                        PropositionRecommandationService propositionRecommandationService,
-                                       ComportementUtilisateurRepository comportementUtilisateurRepository) {
+                                       ComportementUtilisateurRepository comportementUtilisateurRepository, EnhancedRecommandationService enhancedRecommendationService) {
         this.recommandationRepository = recommandationRepository;
         this.comportementUtilisateurRepository = comportementUtilisateurRepository;
         this.comportementService = comportementService;
         this.smsService = smsService;
         this.propositionRecommandationService = propositionRecommandationService;
+        this.enhancedRecommendationService = enhancedRecommendationService;
     }
 
     @Override
@@ -291,30 +294,6 @@ public class RecommandationIAServiceImpl implements RecommandationIAService {
     }
 
 
-    @Override
-    public RecommandationIA mettreAJourScoreRecommandation(String recommandationId, ComportementUtilisateur comportement) {
-        RecommandationIA recommandation = recommandationRepository.findById(recommandationId)
-                .orElseThrow(() -> new RuntimeException("Recommandation non trouvée avec l'ID: " + recommandationId)); 
-
-        double nouveauScore = calculerScoreRecommandation(comportement, recommandation.getRecommandation());
-        recommandation.setScore(nouveauScore);
-
-        return recommandationRepository.save(recommandation);
-    }
-
-
-    @Override
-    public List<RecommandationIA> getRecommandationsParProfil(Long userId) {
-        Optional<ComportementUtilisateur> comportementOpt = comportementService.getBehaviorByUserId(userId);
-
-        if (comportementOpt.isEmpty() || comportementOpt.get().getMetriques() == null || comportementOpt.get().getMetriques().getProfilUtilisateur() == null) {
-            return getRecommandationsByUserId(userId);
-        }
-
-        String profil = comportementOpt.get().getMetriques().getProfilUtilisateur().name();
-        return getRecommandationsByUserIdAndType(userId, "PROFIL_" + profil.toUpperCase());
-    }
-
 
     @Override
     public RecommandationIA genererRecommandationEngagement(Long userId) {
@@ -360,6 +339,82 @@ public class RecommandationIAServiceImpl implements RecommandationIAService {
         propositionRecommandationService.createProposition(savedRecommandation.getUserId(), savedRecommandation.getId(), 3);
         envoyerNotificationSMS(savedRecommandation); 
         return savedRecommandation;
+    }
+    
+    /**
+     * ✅ NOUVELLE MÉTHODE : Génère une recommandation hybride avancée
+     * Combine filtrage collaboratif + contenu + contexte
+     */
+    public RecommandationIA genererRecommandationHybride(Long userId) {
+        return enhancedRecommendationService.genererRecommandationHybride(userId);
+    }
+    
+    /**
+     * ✅ NOUVELLE MÉTHODE : Obtenir toutes les recommandations avec scoring avancé
+     */
+    public List<RecommandationIA> getRecommandationsAvecScore(Long userId) {
+        List<RecommandationIA> recommendations = getRecommandationsByUserId(userId);
+        
+        // Trier par score de qualité
+        recommendations.sort((r1, r2) -> Double.compare(
+            r2.getScore() != null ? r2.getScore() : 0.0,
+            r1.getScore() != null ? r1.getScore() : 0.0
+        ));
+        
+        return recommendations;
+    }
+    
+    /**
+     * ✅ NOUVELLE MÉTHODE : Suggérer le meilleur type de recommandation
+     */
+    public String suggererMeilleurTypeRecommandation(Long userId) {
+        Optional<ComportementUtilisateur> comportementOpt = comportementService.getBehaviorByUserId(userId);
+        
+        if (comportementOpt.isEmpty()) {
+            return "PERSONNALISEE";
+        }
+        
+        ComportementUtilisateur comportement = comportementOpt.get();
+        
+        // Logique de suggestion basée sur le profil
+        if (comportement.getMetriques() != null) {
+            ProfilUtilisateur profil = comportement.getMetriques().getProfilUtilisateur();
+            Double scoreEngagement = comportement.getMetriques().getScoreEngagement();
+            
+            if (profil == ProfilUtilisateur.NOUVEAU) {
+                return "ENGAGEMENT";
+            } else if (scoreEngagement != null && scoreEngagement > 70) {
+                return "HYBRIDE"; // Utiliser la recommandation avancée
+            } else if (comportement.getPreferencesSaisonnieres() != null && 
+                      comportement.getPreferencesSaisonnieres().getSaisonPreferee() != null) {
+                return "SAISONNIERE";
+            }
+        }
+        
+        return "PERSONNALISEE";
+    }
+
+    @Override
+    public RecommandationIA mettreAJourScoreRecommandation(String recommandationId, ComportementUtilisateur comportement) {
+        RecommandationIA recommandation = recommandationRepository.findById(recommandationId)
+                .orElseThrow(() -> new RuntimeException("Recommandation non trouvée avec l'ID: " + recommandationId));
+
+        double nouveauScore = calculerScoreRecommandation(comportement, recommandation.getRecommandation());
+        recommandation.setScore(nouveauScore);
+
+        return recommandationRepository.save(recommandation);
+    }
+
+    @Override
+    public List<RecommandationIA> getRecommandationsParProfil(Long userId) {
+        Optional<ComportementUtilisateur> comportementOpt = comportementService.getBehaviorByUserId(userId);
+
+        if (comportementOpt.isEmpty() || comportementOpt.get().getMetriques() == null || comportementOpt.get().getMetriques().getProfilUtilisateur() == null) {
+            return getRecommandationsByUserId(userId);
+        }
+
+        String profil = comportementOpt.get().getMetriques().getProfilUtilisateur().name();
+        return getRecommandationsByUserIdAndType(userId, "PROFIL_" + profil.toUpperCase());
     }
 
 

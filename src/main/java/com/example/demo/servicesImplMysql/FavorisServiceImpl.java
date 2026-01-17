@@ -30,23 +30,26 @@ public class FavorisServiceImpl implements FavorisService {
     public FavorisEntity addFavori(Long userEntityId, Long recetteEntityId) {
         Optional<UserEntity> userOpt = userRepository.findById(userEntityId);
         if (userOpt.isEmpty()) {
-            return null; 
+            throw new RuntimeException("User not found with id: " + userEntityId); 
         }
         
         Optional<RecetteEntity> recetteOpt = recetteRepository.findById(recetteEntityId);
         if (recetteOpt.isEmpty()) {
-            return null; 
+            throw new RuntimeException("Recette not found with id: " + recetteEntityId); 
         }
-
-        if (existsFavori(userEntityId, recetteEntityId)) {
-            return null; 
+        
+        Optional<FavorisEntity> existingFavori = favorisRepository
+            .findByUserEntityIdAndRecetteEntityId(userEntityId, recetteEntityId);
+        
+        if (existingFavori.isPresent()) {
+            return existingFavori.get(); 
         }
-
+        
         FavorisEntity favorisEntity = new FavorisEntity();
         favorisEntity.setUserEntity(userOpt.get());
         favorisEntity.setRecetteEntity(recetteOpt.get());
         favorisEntity.setDateAjout(LocalDateTime.now());
-
+        
         return favorisRepository.save(favorisEntity);
     }
     

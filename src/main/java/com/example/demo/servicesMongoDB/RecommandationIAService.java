@@ -13,6 +13,10 @@ public interface RecommandationIAService {
     RecommandationIA markAsUsed(String recommandationId);
     void deleteRecommandationsUser(Long userId);
     
+    /**
+     * Génère une recommandation hybride utilisant le moteur Enhanced (Collaboratif + Contenu)
+     */
+    RecommandationIA genererRecommandationHybride(Long userId);
     
     /**
      * Génère des recommandations personnalisées basées sur le comportement utilisateur

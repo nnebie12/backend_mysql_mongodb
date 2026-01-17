@@ -1,5 +1,7 @@
 package com.example.demo.entitiesMysql;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -25,6 +27,7 @@ public class RecetteIngredientEntity {
     
     @ManyToOne
     @JoinColumn(name = "recette_id", insertable = false, updatable = false)
+    @JsonBackReference
     private RecetteEntity recetteEntity;
     
     @ManyToOne

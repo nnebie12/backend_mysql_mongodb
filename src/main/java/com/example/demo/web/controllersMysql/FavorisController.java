@@ -25,8 +25,8 @@ public class FavorisController {
     
     @PostMapping("/{userId}/{recetteId}")
     public ResponseEntity<FavorisEntity> addFavori(@PathVariable Long userId, @PathVariable Long recetteId) {
-    	FavorisEntity favorisEntity = favorisService.addFavori(userId, recetteId);
-        return new ResponseEntity<>(favorisEntity, HttpStatus.CREATED);
+        FavorisEntity favorisEntity = favorisService.addFavori(userId, recetteId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(favorisEntity);
     }
     
     @GetMapping("/{userId}")

@@ -1,6 +1,7 @@
 package com.example.demo.servicesMongoDB;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import com.example.demo.DTO.AnalysePatternsDTO;
@@ -13,6 +14,26 @@ import com.example.demo.entiesMongodb.enums.ProfilUtilisateur;
  * Gère l'analyse et le suivi des patterns de comportement des utilisateurs
  */
 public interface ComportementUtilisateurService {
+	
+	/**
+     * Effectue une analyse comportementale complète (RFM, Churn, Predictibilité)
+     */
+    Map<String, Object> analyserComportementAvance(Long userId);
+
+    /**
+     * Calcule spécifiquement le risque de churn (attrition)
+     */
+    Map<String, Object> obtenirRisqueChurn(Long userId);
+
+    /**
+     * Récupère la segmentation RFM (Récence, Fréquence, Montant/Engagement)
+     */
+    Map<String, Object> obtenirSegmentRFM(Long userId);
+
+    /**
+     * Génère une liste d'actions concrètes pour améliorer l'engagement
+     */
+    List<Map<String, String>> obtenirActionsEngagement(Long userId);
     
     /**
      * Crée un nouveau profil de comportement pour un utilisateur

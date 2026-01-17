@@ -26,6 +26,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     private final ComportementUtilisateurRepository comportementUtilisateurRepository;
     private final InteractionUtilisateurService interactionService;
     private final HistoriqueRechercheService historiqueRechercheService;
+    private final EnhancedComportementAnalysisService enhancedAnalysisService;
     
     private static final int MAX_HISTORIQUE_RECHERCHES = 500;
     private static final int MAX_HISTORIQUE_INTERACTIONS = 1000;
@@ -36,10 +37,11 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
 
     public ComportementUtilisateurServiceImpl(ComportementUtilisateurRepository comportementUtilisateurRepository,
                                             InteractionUtilisateurService interactionService,
-                                            HistoriqueRechercheService historiqueRechercheService) {
+                                            HistoriqueRechercheService historiqueRechercheService, EnhancedComportementAnalysisService enhancedAnalysisService) {
         this.comportementUtilisateurRepository = comportementUtilisateurRepository;
         this.interactionService = interactionService;
         this.historiqueRechercheService = historiqueRechercheService;
+        this.enhancedAnalysisService = enhancedAnalysisService;
     }
 
     @Override
@@ -67,46 +69,42 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
 
         // Initialisation des préférences saisonnières
         ComportementUtilisateur.PreferencesSaisonnieres preferencesSaisonnieres =
-            new ComportementUtilisateur.PreferencesSaisonnieres();
-        preferencesSaisonnieres.setIngredientsPrintemps(new ArrayList<>());
-        preferencesSaisonnieres.setIngredientsEte(new ArrayList<>());
-        preferencesSaisonnieres.setIngredientsAutomne(new ArrayList<>());
-        preferencesSaisonnieres.setIngredientsHiver(new ArrayList<>());
-        preferencesSaisonnieres.setSaisonPreferee(null); 
-        preferencesSaisonnieres.setScoresPreferenceSaisonniere(new HashMap<>());
-        preferencesSaisonnieres.setDerniereMiseAJour(LocalDateTime.now());
-        comportement.setPreferencesSaisonnieres(preferencesSaisonnieres);
+                new ComportementUtilisateur.PreferencesSaisonnieres();
+            preferencesSaisonnieres.setIngredientsPrintemps(new ArrayList<>());
+            preferencesSaisonnieres.setIngredientsEte(new ArrayList<>());
+            preferencesSaisonnieres.setIngredientsAutomne(new ArrayList<>());
+            preferencesSaisonnieres.setIngredientsHiver(new ArrayList<>());
+            preferencesSaisonnieres.setSaisonPreferee(null);
+            preferencesSaisonnieres.setScoresPreferenceSaisonniere(new HashMap<>());
+            preferencesSaisonnieres.setDerniereMiseAJour(LocalDateTime.now());
+            comportement.setPreferencesSaisonnieres(preferencesSaisonnieres);
 
-        // Initialisation des habitudes de navigation
-        ComportementUtilisateur.HabitudesNavigation habitudesNavigation =
-            new ComportementUtilisateur.HabitudesNavigation();
-        habitudesNavigation.setPagesVisitees(new HashMap<>());
-        habitudesNavigation.setTempsParPage(new HashMap<>());
-        habitudesNavigation.setRecherchesFavorites(new ArrayList<>());
-        habitudesNavigation.setTypeRecettePreferee(null);
-        habitudesNavigation.setNombreConnexionsParJour(0);
-        habitudesNavigation.setHeuresConnexionHabituelles(new ArrayList<>());
-        habitudesNavigation.setParcoursFavoris(new HashMap<>());
-        habitudesNavigation.setTempsMoyenParSession(0.0);
-        habitudesNavigation.setNombrePagesParSession(0);
-        habitudesNavigation.setCategoriesPreferees(new ArrayList<>());
-        habitudesNavigation.setFrequenceParCategorie(new HashMap<>());
-        comportement.setHabitudesNavigation(habitudesNavigation);
+            ComportementUtilisateur.HabitudesNavigation habitudesNavigation =
+                new ComportementUtilisateur.HabitudesNavigation();
+            habitudesNavigation.setPagesVisitees(new HashMap<>());
+            habitudesNavigation.setTempsParPage(new HashMap<>());
+            habitudesNavigation.setRecherchesFavorites(new ArrayList<>());
+            habitudesNavigation.setTypeRecettePreferee(null);
+            habitudesNavigation.setNombreConnexionsParJour(0);
+            habitudesNavigation.setHeuresConnexionHabituelles(new ArrayList<>());
+            habitudesNavigation.setParcoursFavoris(new HashMap<>());
+            habitudesNavigation.setTempsMoyenParSession(0.0);
+            habitudesNavigation.setNombrePagesParSession(0);
+            habitudesNavigation.setCategoriesPreferees(new ArrayList<>());
+            habitudesNavigation.setFrequenceParCategorie(new HashMap<>());
+            comportement.setHabitudesNavigation(habitudesNavigation);
 
-        // Initialisation des cycles d'activité
-        ComportementUtilisateur.CyclesActivite cyclesActivite =
-            new ComportementUtilisateur.CyclesActivite();
-        
-        // Initialisation des CreneauRepas 
-        cyclesActivite.setPetitDejeuner(new ComportementUtilisateur.CreneauRepas(null, null, new ArrayList<>(), 0, false, 0.0, new ArrayList<>(), new HashMap<>()));
-        cyclesActivite.setDejeuner(new ComportementUtilisateur.CreneauRepas(null, null, new ArrayList<>(), 0, false, 0.0, new ArrayList<>(), new HashMap<>()));
-        cyclesActivite.setDiner(new ComportementUtilisateur.CreneauRepas(null, null, new ArrayList<>(), 0, false, 0.0, new ArrayList<>(), new HashMap<>()));
-        cyclesActivite.setActiviteParJour(new HashMap<>());
-        cyclesActivite.setJoursActifs(new ArrayList<>());
-        cyclesActivite.setActivitesParCreneau(new HashMap<>());
-        cyclesActivite.setCreneauLePlusActif(null);
-        cyclesActivite.setConsistanceHoraire(0.0);
-        comportement.setCyclesActivite(cyclesActivite);
+            ComportementUtilisateur.CyclesActivite cyclesActivite =
+                new ComportementUtilisateur.CyclesActivite();
+            cyclesActivite.setPetitDejeuner(new ComportementUtilisateur.CreneauRepas(null, null, new ArrayList<>(), 0, false, 0.0, new ArrayList<>(), new HashMap<>()));
+            cyclesActivite.setDejeuner(new ComportementUtilisateur.CreneauRepas(null, null, new ArrayList<>(), 0, false, 0.0, new ArrayList<>(), new HashMap<>()));
+            cyclesActivite.setDiner(new ComportementUtilisateur.CreneauRepas(null, null, new ArrayList<>(), 0, false, 0.0, new ArrayList<>(), new HashMap<>()));
+            cyclesActivite.setActiviteParJour(new HashMap<>());
+            cyclesActivite.setJoursActifs(new ArrayList<>());
+            cyclesActivite.setActivitesParCreneau(new HashMap<>());
+            cyclesActivite.setCreneauLePlusActif(null);
+            cyclesActivite.setConsistanceHoraire(0.0);
+            comportement.setCyclesActivite(cyclesActivite);
 
         return comportementUtilisateurRepository.save(comportement);
     }
@@ -183,6 +181,57 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
         comportement.setMetriques(metriques);
         updateBehavior(comportement);
     }
+    
+    /**
+    * ✅ NOUVELLE MÉTHODE : Analyse comportementale complète avec analytics avancés
+    * Utilise le service enrichi pour fournir des insights supplémentaires
+    */
+   public Map<String, Object> analyserComportementAvance(Long userId) {
+       try {
+           // 1. Exécuter l'analyse de base (votre code existant)
+           ComportementUtilisateur comportement = getOrCreateBehavior(userId);
+           
+           // 2. Exécuter l'analyse avancée
+           Map<String, Object> analyseAvancee = enhancedAnalysisService
+               .analyseComportementaleAvancee(userId);
+           
+           // 3. Fusionner avec les données de base
+           Map<String, Object> resultatComplet = new HashMap<>();
+           resultatComplet.put("comportementBase", comportement);
+           resultatComplet.put("analyticsAvances", analyseAvancee);
+           
+           return resultatComplet;
+           
+       } catch (Exception e) {
+           logger.error("Erreur analyse avancée pour userId {}: {}", userId, e.getMessage());
+           return Map.of("erreur", e.getMessage());
+       }
+   }
+   
+   /**
+    * ✅ NOUVELLE MÉTHODE : Obtenir le score de risque de churn
+    */
+   public Map<String, Object> obtenirRisqueChurn(Long userId) {
+       Map<String, Object> analyse = enhancedAnalysisService.analyseComportementaleAvancee(userId);
+       return (Map<String, Object>) analyse.getOrDefault("risqueChurn", new HashMap<>());
+   }
+   
+   /**
+    * ✅ NOUVELLE MÉTHODE : Obtenir la segmentation RFM
+    */
+   public Map<String, Object> obtenirSegmentRFM(Long userId) {
+       Map<String, Object> analyse = enhancedAnalysisService.analyseComportementaleAvancee(userId);
+       return (Map<String, Object>) analyse.getOrDefault("scoreRFM", new HashMap<>());
+   }
+   
+   /**
+    * ✅ NOUVELLE MÉTHODE : Obtenir les actions d'engagement recommandées
+    */
+   public List<Map<String, String>> obtenirActionsEngagement(Long userId) {
+       Map<String, Object> analyse = enhancedAnalysisService.analyseComportementaleAvancee(userId);
+       return (List<Map<String, String>>) analyse.getOrDefault("actionsEngagement", new ArrayList<>());
+   }
+
 
     @Override
     @PreAuthorize("hasRole('ADMIN') or (#userId == authentication.principal.id)")
@@ -387,10 +436,14 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             statistiques.put("activiteParHeure", activiteParHeure);
 
             statistiques.put("tendanceEngagement", calculerTendanceEngagement(interactions, recherches));
+            
+            Map<String, Object> statsAvancees = enhancedAnalysisService.analyseComportementaleAvancee(userId);
+            statistiques.put("analyticsAvances", statsAvancees);
 
         } catch (Exception e) {
             logger.error("Erreur lors du calcul des statistiques détaillées pour l'utilisateur {}: {}", userId, e.getMessage(), e);
             statistiques.put("erreur", "Erreur lors du calcul des statistiques détaillées: " + e.getMessage());
+            logger.warn("Stats avancées non disponibles pour userId {}", userId);
         }
 
         return statistiques;

@@ -87,6 +87,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/administrateur/**").hasRole("ADMIN")
+                .requestMatchers("/api/v1/historique-recherche/**").permitAll()
+                .requestMatchers("/api/v1/recommendations/**").permitAll()
+                .requestMatchers("/api/v1/ai-recommendations/**").permitAll()
+                
                 
                 // Tout le reste nécessite une authentification
                 .anyRequest().authenticated()

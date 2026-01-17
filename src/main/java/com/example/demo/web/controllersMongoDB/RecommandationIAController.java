@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.DTO.RecommandationIACreationDTO;
 import com.example.demo.entiesMongodb.RecommandationIA;
+import com.example.demo.entiesMongodb.enums.Saison;
 import com.example.demo.servicesMongoDB.RecommandationIAService;
 
 @RestController
@@ -46,6 +47,72 @@ public class RecommandationIAController {
         List<RecommandationIA> recommandations = recommandationService.getRecommandationsByUserId(userId);
         return new ResponseEntity<>(recommandations, HttpStatus.OK);
     }
+    
+    @PostMapping("/user/{userId}/generer-personnalisee")
+    public ResponseEntity<RecommandationIA> genererRecommandationPersonnalisee(@PathVariable Long userId) {
+        try {
+            RecommandationIA recommandation = recommandationService.genererRecommandationPersonnalisee(userId);
+            return new ResponseEntity<>(recommandation, HttpStatus.CREATED);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    @PostMapping("/user/{userId}/generer-saisonniere")
+    public ResponseEntity<RecommandationIA> genererRecommandationSaisonniere(@PathVariable Long userId) {
+        try {
+            RecommandationIA recommandation = recommandationService.genererRecommandationSaisonniere(userId);
+            return new ResponseEntity<>(recommandation, HttpStatus.CREATED);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    @PostMapping("/user/{userId}/generer-habitudes")
+    public ResponseEntity<RecommandationIA> genererRecommandationHabitudes(@PathVariable Long userId) {
+        try {
+            RecommandationIA recommandation = recommandationService.genererRecommandationHabitudes(userId);
+            return new ResponseEntity<>(recommandation, HttpStatus.CREATED);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    @PostMapping("/user/{userId}/generer-creneau")
+    public ResponseEntity<RecommandationIA> genererRecommandationCreneauActuel(@PathVariable Long userId) {
+        try {
+            RecommandationIA recommandation = recommandationService.genererRecommandationCreneauActuel(userId);
+            return new ResponseEntity<>(recommandation, HttpStatus.CREATED);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    @PostMapping("/user/{userId}/generer-engagement")
+    public ResponseEntity<RecommandationIA> genererRecommandationEngagement(@PathVariable Long userId) {
+        try {
+            RecommandationIA recommandation = recommandationService.genererRecommandationEngagement(userId);
+            return new ResponseEntity<>(recommandation, HttpStatus.CREATED);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    @PostMapping("/user/{userId}/generer-toutes")
+    public ResponseEntity<List<RecommandationIA>> genererToutesRecommandations(@PathVariable Long userId) {
+        try {
+            List<RecommandationIA> recommandations = List.of(
+                recommandationService.genererRecommandationPersonnalisee(userId),
+                recommandationService.genererRecommandationSaisonniere(userId),
+                recommandationService.genererRecommandationHabitudes(userId),
+                recommandationService.genererRecommandationCreneauActuel(userId),
+                recommandationService.genererRecommandationEngagement(userId)
+            );
+            return new ResponseEntity<>(recommandations, HttpStatus.CREATED);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 
     @GetMapping("/user/{userId}/type/{type}")
     public ResponseEntity<List<RecommandationIA>> getRecommandationsByUserIdAndType(
@@ -71,5 +138,20 @@ public class RecommandationIAController {
     @GetMapping("/test")
     public ResponseEntity<String> testEndpoint() {
         return new ResponseEntity<>("Contrôleur RecommandationIA fonctionne correctement !", HttpStatus.OK);
+    }
+
+    @PostMapping("/user/{userId}/generer-hybride")
+    public ResponseEntity<RecommandationIA> genererHybride(@PathVariable Long userId) {
+        // Cette méthode doit être ajoutée à l'interface RecommandationIAService 
+        // pour appeler enhancedRecommendationService.genererRecommandationHybride
+        RecommandationIA recommandation = recommandationService.genererRecommandationHybride(userId);
+        return new ResponseEntity<>(recommandation, HttpStatus.CREATED);
+    }
+
+    @PostMapping("/user/{userId}/generer-saison")
+    public ResponseEntity<RecommandationIA> generateSeasonal(
+            @PathVariable Long userId) {
+        RecommandationIA recommandation = recommandationService.genererRecommandationSaisonniere(userId);
+        return new ResponseEntity<>(recommandation, HttpStatus.CREATED);
     }
 }
