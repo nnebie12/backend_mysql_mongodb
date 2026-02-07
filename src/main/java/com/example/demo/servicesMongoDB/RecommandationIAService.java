@@ -67,4 +67,19 @@ public interface RecommandationIAService {
      * @return RecommandationIA pour améliorer l'engagement
      */
     RecommandationIA genererRecommandationEngagement(Long userId);
+    
+    /**
+     * Récupère absolument toutes les recommandations (Espace Admin)
+     */
+    List<RecommandationIA> getAllRecommandations();
+
+    /**
+     * Récupère les recommandations d'un utilisateur triées par score
+     */
+    List<RecommandationIA> getRecommandationsAvecScore(Long userId);
+
+    /**
+     * Analyse le comportement pour suggérer le moteur de recommandation le plus pertinent
+     */
+    String suggererMeilleurTypeRecommandation(Long userId);
 }

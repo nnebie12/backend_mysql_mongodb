@@ -80,19 +80,21 @@ public class SecurityConfig {
                 // RecetteIngredient - publics (lecture)
                 .requestMatchers("/api/recetteIngredient/recette/{recetteId}").permitAll()
                 
-             // Recommandation - publics (lecture)
+                // Recommandation - publics (lecture)
                 .requestMatchers("/api/v1/recommandations/**").permitAll()
-                
-                // Admin endpoints - ADMIN seulement
-                .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/administrateur/**").hasRole("ADMIN")
                 .requestMatchers("/api/v1/historique-recherche/**").permitAll()
                 .requestMatchers("/api/v1/recommendations/**").permitAll()
                 .requestMatchers("/api/v1/ai-recommendations/**").permitAll()
                 
+                .requestMatchers("/api/v1/users/**").hasAnyRole("ADMIN", "ADMINISTRATEUR")
+                .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "ADMINISTRATEUR")
+                .requestMatchers("/api/administrateur/**").hasAnyRole("ADMIN", "ADMINISTRATEUR")
                 
-                // Tout le reste nécessite une authentification
+                .requestMatchers("/api/v1/comportement-utilisateur/stats/**").hasAnyRole("ADMIN", "ADMINISTRATEUR")
+                .requestMatchers("/api/v1/comportement-utilisateur/engaged").hasAnyRole("ADMIN", "ADMINISTRATEUR")
+                .requestMatchers("/api/v1/comportement-utilisateur/profil/**").hasAnyRole("ADMIN", "ADMINISTRATEUR")
+                .requestMatchers("/api/v1/comportement-utilisateur/**").authenticated()
+                
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session

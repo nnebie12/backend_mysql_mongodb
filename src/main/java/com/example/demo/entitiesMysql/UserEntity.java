@@ -1,11 +1,16 @@
 package com.example.demo.entitiesMysql;
 
+import java.util.ArrayList;
 import java.util.List;
+import jakarta.persistence.*;
 
+import com.example.demo.entitiesMysql.ennums.Role;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -42,9 +47,25 @@ public class UserEntity {
 
     @Column(name = "preference_alimentaire", length = 500)
     private String preferenceAlimentaire;
+    
+    @ElementCollection
+    @CollectionTable(name = "user_ingredients_apprecies", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "ingredient")
+    private List<String> ingredientsApprecies = new ArrayList<>();
 
-    @Column(name = "role", nullable = false, length = 50)
-    private String role = "USER";
+    @ElementCollection
+    @CollectionTable(name = "user_ingredients_evites", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "ingredient")
+    private List<String> ingredientsEvites = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "user_contraintes_alimentaires", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "contrainte")
+    private List<String> contraintesAlimentaires = new ArrayList<>();
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role = Role.USER;
 
     @OneToMany(mappedBy = "userEntity", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonIgnore 

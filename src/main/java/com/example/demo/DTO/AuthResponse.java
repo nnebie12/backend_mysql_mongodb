@@ -1,5 +1,6 @@
 package com.example.demo.DTO;
 
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -12,4 +13,5 @@ public class AuthResponse {
     private String prenom;
     private String email;
     private String role;
+    private String preferenceAlimentaire;
 }

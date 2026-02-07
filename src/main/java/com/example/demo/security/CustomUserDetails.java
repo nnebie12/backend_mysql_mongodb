@@ -1,6 +1,8 @@
 package com.example.demo.security;
 
 import com.example.demo.entitiesMysql.UserEntity;
+import com.example.demo.entitiesMysql.ennums.Role;
+
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -18,19 +20,18 @@ public class CustomUserDetails implements UserDetails {
     
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        String role = userEntity.getRole();
+        Role role = userEntity.getRole(); 
         
-        // Vérifie si le rôle est null ou vide avant de le traiter
-        if (role == null || role.trim().isEmpty()) {
-            return Collections.emptyList(); 
+        if (role == null) {
+            return Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
         }
         
-        String normalizedRole = normalizeRole(role);
-        
         return Collections.singletonList(
-            new SimpleGrantedAuthority("ROLE_" + normalizedRole.toUpperCase())
+            new SimpleGrantedAuthority("ROLE_" + role.name())
         );
     }
+
+    // Supprimez la méthode normalizeRole qui est devenue inutile
     
     /**
      * Normalise les rôles pour correspondre à la configuration Spring Security
@@ -85,7 +86,7 @@ public class CustomUserDetails implements UserDetails {
     }
     
     public String getRole() {
-        return userEntity.getRole();
+        return userEntity.getRole() != null ? userEntity.getRole().name() : "USER";
     }
     
     public UserEntity getUserEntity() {

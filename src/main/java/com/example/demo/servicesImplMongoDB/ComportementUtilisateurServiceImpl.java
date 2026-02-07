@@ -110,13 +110,13 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMIN') or (#userId == authentication.principal.id)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ADMINISTRATEUR') or (#userId == authentication.principal.id)")
     public Optional<ComportementUtilisateur> getBehaviorByUserId(Long userId) {
         return comportementUtilisateurRepository.findByUserId(userId);
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMIN') or (#userId == authentication.principal.id)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ADMINISTRATEUR') or (#userId == authentication.principal.id)")
     public ComportementUtilisateur getOrCreateBehavior(Long userId) {
         return getBehaviorByUserId(userId)
             .orElseGet(() -> createBehavior(userId));
@@ -129,7 +129,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ADMINISTRATEUR')")
     public void updateMetrics(Long userId) {
         ComportementUtilisateur comportement = getOrCreateBehavior(userId);
         ComportementUtilisateur.MetriquesComportementales metriques =
@@ -234,7 +234,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
 
 
     @Override
-    @PreAuthorize("hasRole('ADMIN') or (#userId == authentication.principal.id)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ADMINISTRATEUR') or (#userId == authentication.principal.id)")
     public ComportementUtilisateur recordSearch(Long userId, String terme,
                                                 List<HistoriqueRecherche.Filtre> filtres,
                                                 Integer nombreResultats,
@@ -297,7 +297,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMIN') or (#userId == authentication.principal.id)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ADMINISTRATEUR') or (#userId == authentication.principal.id)")
     public List<String> getFrequentSearchTerms(Long userId) {
         List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoryByUserId(userId);
 
@@ -320,13 +320,13 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
 
 
     @Override
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ADMINISTRATEUR')")
     public List<ComportementUtilisateur> getEngagedUsers(Double scoreMinimum) {
         return comportementUtilisateurRepository.findByMetriques_ScoreEngagementGreaterThan(scoreMinimum);
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ADMINISTRATEUR')")
     public void deleteUserBehavior(Long userId) {
     	comportementUtilisateurRepository.deleteByUserId(userId);
     }
@@ -356,7 +356,7 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ADMINISTRATEUR')")
     public Map<String, Object> obtenirStatistiquesComportement(Long userId) {
         ComportementUtilisateur comportement = getOrCreateBehavior(userId);
         Map<String, Object> statistiques = new HashMap<>();

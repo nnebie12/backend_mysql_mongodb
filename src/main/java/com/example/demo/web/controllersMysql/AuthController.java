@@ -2,31 +2,30 @@ package com.example.demo.web.controllersMysql;
 
 import com.example.demo.DTO.AuthRequest;
 import com.example.demo.DTO.AuthResponse;
-import com.example.demo.entitiesMysql.UserEntity;
-import com.example.demo.security.CustomUserDetails;
+import com.example.demo.DTO.UpdateProfileRequest;
+import com.example.demo.DTO.UserResponse;
 import com.example.demo.servicesMysql.AuthService;
 import com.example.demo.servicesMysql.UserService;
 import jakarta.validation.Valid;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 
     private final AuthService authService;
-    private final UserService userService;
+    
 
-    public AuthController(AuthService authService, UserService userService) {
+    public AuthController(AuthService authService, UserService userService, AuthenticationManager authenticationManager) {
         this.authService = authService;
-        this.userService = userService;
+       
     }
 
     @PostMapping("/login")
@@ -34,44 +33,51 @@ public class AuthController {
         try {
             AuthResponse authResponse = authService.authenticate(authRequest);
             return ResponseEntity.ok(authResponse);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body("Email ou mot de passe incorrect");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                                 .body("Email ou mot de passe incorrect");
         }
     }
     
     @PostMapping("/register")
-    public ResponseEntity<UserEntity> register(@RequestBody @Valid UserEntity user) {
+    public ResponseEntity<?> register(@RequestBody @Valid AuthRequest request) { 
         try {
-            UserEntity savedUser = authService.registerUser(user);
+            UserResponse savedUser = authService.registerUser(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
-        } catch (DataIntegrityViolationException | IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(null);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
         }
     }
 
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<UserEntity> getCurrentUser() {
+    public ResponseEntity<UserResponse> getCurrentUser() { 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !(authentication.getPrincipal() instanceof CustomUserDetails)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
-        }
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-
-        Optional<UserEntity> userOpt = userService.getUserByEmail(userDetails.getUsername());
-
-        if (userOpt.isPresent()) {
-            UserEntity user = userOpt.get();
+        String email = authentication.getName();
+        
+        try {
+            UserResponse user = authService.getCurrentUser(email);
             return ResponseEntity.ok(user);
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
     }
 
     @PostMapping("/validate")
     public ResponseEntity<String> validateToken() {
         return ResponseEntity.ok("Token valide");
+    }
+    
+    @PutMapping("/update")
+    public ResponseEntity<UserResponse> updateProfile(
+            Authentication authentication,
+            @RequestBody UpdateProfileRequest request) {
+        try {
+            String email = authentication.getName();
+            UserResponse user = authService.updateProfile(email, request);
+            return ResponseEntity.ok(user);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
     }
 }

@@ -61,6 +61,63 @@ public class RecommandationIAServiceImpl implements RecommandationIAService {
 
         return saved;
     }
+    
+    /**
+     * ✅ Indispensable pour le panneau d'administration
+     * Récupère toutes les recommandations de la base MongoDB
+     */
+    @Override
+    public List<RecommandationIA> getAllRecommandations() {
+        return recommandationRepository.findAll();
+    }
+
+    /**
+     * ✅ Récupère et trie les recommandations par pertinence (score)
+     */
+    @Override
+    public List<RecommandationIA> getRecommandationsAvecScore(Long userId) {
+        List<RecommandationIA> recommendations = recommandationRepository.findByUserId(userId);
+        
+        if (recommendations != null) {
+            // Tri décroissant : le plus haut score en premier
+            recommendations.sort((r1, r2) -> Double.compare(
+                r2.getScore() != null ? r2.getScore() : 0.0,
+                r1.getScore() != null ? r1.getScore() : 0.0
+            ));
+        }
+        
+        return recommendations;
+    }
+
+    /**
+     * ✅ Logique décisionnelle pour choisir le type de génération
+     */
+    @Override
+    public String suggererMeilleurTypeRecommandation(Long userId) {
+        Optional<ComportementUtilisateur> comportementOpt = comportementService.getBehaviorByUserId(userId);
+        
+        if (comportementOpt.isEmpty()) {
+            return "PERSONNALISEE";
+        }
+        
+        ComportementUtilisateur comportement = comportementOpt.get();
+        
+        if (comportement.getMetriques() != null) {
+            ProfilUtilisateur profil = comportement.getMetriques().getProfilUtilisateur();
+            Double scoreEngagement = comportement.getMetriques().getScoreEngagement();
+            
+            if (profil == ProfilUtilisateur.NOUVEAU) {
+                return "ENGAGEMENT";
+            } else if (scoreEngagement != null && scoreEngagement > 70) {
+                return "HYBRIDE"; 
+            } else if (comportement.getPreferencesSaisonnieres() != null && 
+                      comportement.getPreferencesSaisonnieres().getSaisonPreferee() != null) {
+                return "SAISONNIERE";
+            }
+        }
+        
+        return "PERSONNALISEE";
+    }
 
     @Override
     public List<RecommandationIA> getRecommandationsByUserId(Long userId) {
@@ -349,51 +406,9 @@ public class RecommandationIAServiceImpl implements RecommandationIAService {
         return enhancedRecommendationService.genererRecommandationHybride(userId);
     }
     
-    /**
-     * ✅ NOUVELLE MÉTHODE : Obtenir toutes les recommandations avec scoring avancé
-     */
-    public List<RecommandationIA> getRecommandationsAvecScore(Long userId) {
-        List<RecommandationIA> recommendations = getRecommandationsByUserId(userId);
-        
-        // Trier par score de qualité
-        recommendations.sort((r1, r2) -> Double.compare(
-            r2.getScore() != null ? r2.getScore() : 0.0,
-            r1.getScore() != null ? r1.getScore() : 0.0
-        ));
-        
-        return recommendations;
-    }
     
-    /**
-     * ✅ NOUVELLE MÉTHODE : Suggérer le meilleur type de recommandation
-     */
-    public String suggererMeilleurTypeRecommandation(Long userId) {
-        Optional<ComportementUtilisateur> comportementOpt = comportementService.getBehaviorByUserId(userId);
-        
-        if (comportementOpt.isEmpty()) {
-            return "PERSONNALISEE";
-        }
-        
-        ComportementUtilisateur comportement = comportementOpt.get();
-        
-        // Logique de suggestion basée sur le profil
-        if (comportement.getMetriques() != null) {
-            ProfilUtilisateur profil = comportement.getMetriques().getProfilUtilisateur();
-            Double scoreEngagement = comportement.getMetriques().getScoreEngagement();
-            
-            if (profil == ProfilUtilisateur.NOUVEAU) {
-                return "ENGAGEMENT";
-            } else if (scoreEngagement != null && scoreEngagement > 70) {
-                return "HYBRIDE"; // Utiliser la recommandation avancée
-            } else if (comportement.getPreferencesSaisonnieres() != null && 
-                      comportement.getPreferencesSaisonnieres().getSaisonPreferee() != null) {
-                return "SAISONNIERE";
-            }
-        }
-        
-        return "PERSONNALISEE";
-    }
-
+    
+    
     @Override
     public RecommandationIA mettreAJourScoreRecommandation(String recommandationId, ComportementUtilisateur comportement) {
         RecommandationIA recommandation = recommandationRepository.findById(recommandationId)

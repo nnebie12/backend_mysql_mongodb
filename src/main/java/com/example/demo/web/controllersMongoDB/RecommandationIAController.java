@@ -135,15 +135,10 @@ public class RecommandationIAController {
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
     
-    @GetMapping("/test")
-    public ResponseEntity<String> testEndpoint() {
-        return new ResponseEntity<>("Contrôleur RecommandationIA fonctionne correctement !", HttpStatus.OK);
-    }
+    
 
     @PostMapping("/user/{userId}/generer-hybride")
     public ResponseEntity<RecommandationIA> genererHybride(@PathVariable Long userId) {
-        // Cette méthode doit être ajoutée à l'interface RecommandationIAService 
-        // pour appeler enhancedRecommendationService.genererRecommandationHybride
         RecommandationIA recommandation = recommandationService.genererRecommandationHybride(userId);
         return new ResponseEntity<>(recommandation, HttpStatus.CREATED);
     }

@@ -6,6 +6,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import com.example.demo.entitiesMysql.UserEntity;
+import com.example.demo.entitiesMysql.ennums.Role;
 import com.example.demo.repositoryMysql.UserRepository;
 
 @Component
@@ -33,12 +34,11 @@ public class AdminInitializer implements CommandLineRunner {
             admin.setPrenom("Diane"); 
             admin.setEmail(adminEmail);
             admin.setMotDePasse(passwordEncoder.encode(adminPassword));
-            admin.setRole("ADMINISTRATEUR");
+            
+            admin.setRole(Role.ADMINISTRATEUR); 
 
             userRepository.save(admin);
-            System.out.println("Utilisateur administrateur initial créé : " + adminEmail);
-        } else {
-            System.out.println("Utilisateur administrateur existe déjà.");
+            System.out.println("Utilisateur administrateur créé : " + adminEmail);
         }
     }
 }
