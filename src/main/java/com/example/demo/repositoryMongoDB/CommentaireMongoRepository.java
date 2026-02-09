@@ -9,4 +9,6 @@ import com.example.demo.entiesMongodb.CommentaireDocument;
 public interface CommentaireMongoRepository extends MongoRepository<CommentaireDocument, String> {
     
     List<CommentaireDocument> findByUserId(String userId);
+
+	List<CommentaireDocument> findByRecetteEntityId(Long recetteEntityId);
 }

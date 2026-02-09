@@ -18,6 +18,11 @@ public class RecetteResponseDTO {
     private String difficulte;
     private LocalDateTime dateCreation;
     private String recetteMongoId;
+    private String typeRecette;
+    private String cuisine;
+	private String imageUrl;
+	private Boolean vegetarien;
+
 
     private Long userId; 
     private String userName;

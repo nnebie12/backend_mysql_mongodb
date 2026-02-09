@@ -4,6 +4,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+
+import com.example.demo.entitiesMysql.RecetteEntity;
+
 import org.springframework.data.mongodb.core.index.Indexed;
 import lombok.Data;
 
@@ -30,6 +33,9 @@ public class RecommandationIA {
     @Indexed
     private Boolean estUtilise;
     
+    @Indexed
+    private RecetteEntity recetteEntity;
+    
     // Champs pour l'intégration avec ComportementUtilisateur
     private String comportementUtilisateurId;
     private String profilUtilisateurCible;
@@ -45,5 +51,6 @@ public class RecommandationIA {
         private String categorie;
         private Double scoreRelevance;
         private List<String> tags;
+       
     }
 }

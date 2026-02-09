@@ -5,6 +5,8 @@ import java.util.Map;
 
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import com.example.demo.entitiesMysql.RecetteEntity;
+
 import jakarta.persistence.Id;
 import lombok.Data;
 
@@ -35,4 +37,6 @@ public class RecetteInteraction {
     private Boolean comptabilisee = false; 
     
     private String adresseIP; 
+    
+    private RecetteEntity recetteEntity;
 }

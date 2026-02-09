@@ -9,7 +9,7 @@ import com.example.demo.entiesMongodb.NoteDocument;
 
 public interface NoteMongoRepository extends MongoRepository<NoteDocument, String> {
     
-    List<NoteDocument> findByUserId(String userId);
+    List<NoteDocument> findByUserId(Long userId);
     
     Optional<NoteDocument> findByUserIdAndRecetteId(String userId, String recetteId);
 }

@@ -15,6 +15,7 @@ import com.example.demo.repositoryMongoDB.RecommandationIARepository;
 import com.example.demo.servicesMongoDB.RecommandationIAService;
 import com.example.demo.servicesMongoDB.ComportementUtilisateurService;
 import com.example.demo.servicesMongoDB.EnhancedRecommandationService;
+import com.example.demo.servicesMongoDB.GeminiRecommendationService;
 import com.example.demo.servicesMongoDB.PropositionRecommandationService;
 import com.example.demo.servicesMysql.SmsService;
 
@@ -27,6 +28,8 @@ public class RecommandationIAServiceImpl implements RecommandationIAService {
     private final PropositionRecommandationService propositionRecommandationService;
     private final ComportementUtilisateurRepository comportementUtilisateurRepository;
     private final EnhancedRecommandationService enhancedRecommendationService;
+    private final GeminiRecommendationService aiService;
+
 
     @Value("${sms.recipient}")
     private String smsRecipient;
@@ -35,13 +38,16 @@ public class RecommandationIAServiceImpl implements RecommandationIAService {
                                        ComportementUtilisateurService comportementService,
                                        SmsService smsService,
                                        PropositionRecommandationService propositionRecommandationService,
-                                       ComportementUtilisateurRepository comportementUtilisateurRepository, EnhancedRecommandationService enhancedRecommendationService) {
+                                       ComportementUtilisateurRepository comportementUtilisateurRepository, 
+                                       EnhancedRecommandationService enhancedRecommendationService,
+                                       GeminiRecommendationService aiService) {
         this.recommandationRepository = recommandationRepository;
         this.comportementUtilisateurRepository = comportementUtilisateurRepository;
         this.comportementService = comportementService;
         this.smsService = smsService;
         this.propositionRecommandationService = propositionRecommandationService;
         this.enhancedRecommendationService = enhancedRecommendationService;
+        this.aiService = aiService;
     }
 
     @Override
@@ -199,6 +205,8 @@ public class RecommandationIAServiceImpl implements RecommandationIAService {
         propositionRecommandationService.createProposition(savedRecommandation.getUserId(), savedRecommandation.getId(), 3);
         envoyerNotificationSMS(savedRecommandation); 
         return savedRecommandation;
+        
+    
     }
     
 
