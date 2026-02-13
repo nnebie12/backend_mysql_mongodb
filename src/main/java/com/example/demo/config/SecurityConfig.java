@@ -30,14 +30,11 @@ public class SecurityConfig {
     
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
     
     public SecurityConfig(@Lazy JwtUtil jwtUtil, 
-                         @Lazy CustomUserDetailsService userDetailsService, 
-                         @Lazy JwtAuthenticationFilter jwtAuthenticationFilter) {
+                         @Lazy CustomUserDetailsService userDetailsService) {
         this.jwtUtil = jwtUtil;
         this.userDetailsService = userDetailsService;
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
     
     @Bean
@@ -85,6 +82,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/historique-recherche/**").permitAll()
                 .requestMatchers("/api/v1/recommendations/**").permitAll()
                 .requestMatchers("/api/v1/ai-recommendations/**").permitAll()
+                .requestMatchers("/api/v1/nlp/**").permitAll()
                 
                 .requestMatchers("/api/v1/users/**").hasAnyRole("ADMIN", "ADMINISTRATEUR")
                 .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "ADMINISTRATEUR")
@@ -100,8 +98,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-        
+            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);        
         return http.build();
     }
     
@@ -119,39 +116,25 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // Origines autorisées
-        configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:3000",
-            "http://localhost:5173",
-            "http://localhost:5174"
+        // 1. On autorise explicitement les origines de développement
+        configuration.setAllowedOriginPatterns(Arrays.asList(
+            "http://localhost:[*]",
+            "http://127.0.0.1:[*]",
+            "http://*.localhost:[*]"
         ));
         
-        // Méthodes HTTP autorisées
-        configuration.setAllowedMethods(Arrays.asList(
-            "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"
-        ));
+        // 2. On autorise TOUTES les méthodes
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         
-        // Headers autorisés
-        configuration.setAllowedHeaders(Arrays.asList(
-            "Authorization",
-            "Content-Type",
-            "X-Requested-With",
-            "Accept",
-            "Origin",
-            "Access-Control-Request-Method",
-            "Access-Control-Request-Headers"
-        ));
+        // 3. On autorise TOUS les headers (indispensable pour les tests)
+        configuration.setAllowedHeaders(Arrays.asList("*"));
         
-        // Headers exposés
-        configuration.setExposedHeaders(Arrays.asList(
-            "Authorization",
-            "Content-Type"
-        ));
+        // 4. On expose les headers dont le frontend a besoin (notamment le JWT)
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));
         
-        // Autoriser les credentials
+        // 5. On autorise les cookies/auth-headers
         configuration.setAllowCredentials(true);
         
-        // Durée du cache preflight
         configuration.setMaxAge(3600L);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

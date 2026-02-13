@@ -61,6 +61,9 @@ public class AuthService {
         userEntity.setIngredientsApprecies(request.getIngredientsApprecies());
         userEntity.setIngredientsEvites(request.getIngredientsEvites());
         userEntity.setContraintesAlimentaires(request.getContraintesAlimentaires());
+        
+        userEntity.setNiveauCuisine(request.getNiveauCuisine());
+        userEntity.setNewsletter(request.getNewsletter());
         userEntity.setRole(Role.USER);
 
         UserEntity savedUser = userRepository.save(userEntity);
@@ -124,7 +127,9 @@ public class AuthService {
             ui.getPrenom(), 
             ui.getEmail(), 
             ui.getRole(), 
-            ui.getPreferenceAlimentaire()
+            ui.getPreferenceAlimentaire(),
+            ui.getContraintesAlimentaires(),
+            ui.getNiveauCuisine()
         );
     }
 

@@ -45,8 +45,9 @@ public class UserEntity {
     @Column(name = "mot_de_passe", nullable = false, length = 255)
     private String motDePasse;
 
+    @ElementCollection
     @Column(name = "preference_alimentaire", length = 500)
-    private String preferenceAlimentaire;
+    private List<String> preferenceAlimentaire = new ArrayList<>();
     
     @ElementCollection
     @CollectionTable(name = "user_ingredients_apprecies", joinColumns = @JoinColumn(name = "user_id"))
@@ -62,6 +63,12 @@ public class UserEntity {
     @CollectionTable(name = "user_contraintes_alimentaires", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "contrainte")
     private List<String> contraintesAlimentaires = new ArrayList<>();
+    
+    @Column(name = "niveau_cuisine", length = 50)
+    private String niveauCuisine;
+
+    @Column(name = "newsletter", nullable = false)
+    private Boolean newsletter = false;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

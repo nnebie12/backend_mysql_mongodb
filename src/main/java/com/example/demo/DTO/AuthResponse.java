@@ -1,6 +1,9 @@
 package com.example.demo.DTO;
 
 
+import java.util.ArrayList;
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -13,5 +16,7 @@ public class AuthResponse {
     private String prenom;
     private String email;
     private String role;
-    private String preferenceAlimentaire;
+    private List<String> preferenceAlimentaire;
+    private List<String> contraintesAlimentaires;
+    private String niveauCuisine;
 }

@@ -35,6 +35,12 @@ public class InteractionUtilisateurController {
                 userId, typeInteraction, entiteId, dureeConsultation);
         return new ResponseEntity<>(interaction, HttpStatus.CREATED);
     }
+    
+    @GetMapping("/all")
+    public ResponseEntity<List<InteractionUtilisateur>> getAllInteractions() {
+        List<InteractionUtilisateur> interactions = interactionService.getAllInteractions(); 
+        return new ResponseEntity<>(interactions, HttpStatus.OK);
+    }
 
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<InteractionUtilisateur>> getInteractionsByUserId(@PathVariable Long userId) {

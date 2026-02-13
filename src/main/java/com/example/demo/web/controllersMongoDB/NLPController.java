@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/v1/nlp")
-@CrossOrigin(origins = "*")
+@CrossOrigin(originPatterns = "*", allowCredentials = "true")
 public class NLPController {
     
     private static final Logger logger = LoggerFactory.getLogger(NLPController.class);
@@ -48,37 +48,38 @@ public class NLPController {
      */
     @PostMapping("/search/semantic")
     public ResponseEntity<?> semanticSearch(@RequestBody Map<String, String> request) {
-        
         String query = request.get("query");
-        
         if (query == null || query.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of(
-                "error", "La requête ne peut pas être vide"
-            ));
+            return ResponseEntity.badRequest().body(Map.of("error", "La requête ne peut pas être vide"));
         }
-        
-        logger.info("Recherche sémantique: {}", query);
-        
+
         try {
             List<RecetteEntity> allRecipes = recetteRepo.findAll();
+            logger.info("Nombre de recettes récupérées pour NLP : {}", allRecipes.size());
             
+            // Alerte si la base est vide
+            if (allRecipes.isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                    "query", query,
+                    "total_results", 0,
+                    "message", "La base de données MySQL est vide. Importez le CSV d'abord."
+                ));
+            }
+
             List<RecetteEntity> results = nlpService.semanticSearch(query, allRecipes, 10);
             
-            List<RecetteResponseDTO> resultDTOs = results.stream()
+            List<RecetteResponseDTO> dtos = results.stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
-            
+
             return ResponseEntity.ok(Map.of(
                 "query", query,
-                "total_results", resultDTOs.size(),
-                "results", resultDTOs
+                "total_results", dtos.size(),
+                "results", dtos
             ));
-            
         } catch (Exception e) {
-            logger.error("Erreur recherche sémantique", e);
-            return ResponseEntity.status(500).body(Map.of(
-                "error", "Erreur lors de la recherche sémantique"
-            ));
+            logger.error("NLP Error: {}", e.getMessage());
+            return ResponseEntity.status(500).body(Map.of("error", "Erreur moteur NLP: " + e.getMessage()));
         }
     }
     

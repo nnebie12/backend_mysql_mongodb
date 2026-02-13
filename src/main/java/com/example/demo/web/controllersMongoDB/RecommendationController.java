@@ -2,6 +2,7 @@ package com.example.demo.web.controllersMongoDB;
 
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -172,26 +173,16 @@ public class RecommendationController {
         logger.info("Requête d'analyse des tendances");
         
         try {
-            List<RecetteInteraction> allInteractions = 
-                interactionRepo.findAll();
-            
-            if (allInteractions.isEmpty()) {
-                return ResponseEntity.ok(Map.of(
-                    "message", "Pas assez de données pour analyser les tendances"
-                ));
-            }
-            
+            List<RecetteInteraction> allInteractions = interactionRepo.findAll();
+            // Simuler des tendances basiques si le service IA échoue
             Map<String, Object> trends = aiService.detectTrends(allInteractions);
-            
-            logger.info("Analyse des tendances générée avec succès");
-            
             return ResponseEntity.ok(trends);
-            
         } catch (Exception e) {
-            logger.error("Erreur lors de la détection des tendances", e);
-            return ResponseEntity.status(500).body(Map.of(
-                "error", "Erreur lors de la détection des tendances",
-                "message", e.getMessage()
+            logger.warn("Gemini Error, switching to basic trends: {}", e.getMessage());
+            // Fallback : Tendances basiques sans IA
+            return ResponseEntity.ok(Map.of(
+                "trending_categories", List.of("Général"),
+                "message", "Tendances basiques (IA indisponible)"
             ));
         }
     }
@@ -402,8 +393,7 @@ public class RecommendationController {
      * Récupère les recettes populaires (basé sur le nombre d'interactions)
      */
     private List<RecetteResponseDTO> getPopularRecipes(int limit) {
-        List<RecetteInteraction> allInteractions = interactionRepo.findAll();
-        
+    	List<RecetteInteraction> allInteractions = interactionRepo.findAll(PageRequest.of(0, 100)).getContent();        
         // Compter les interactions par recette
         Map<Long, Long> recipeInteractionCount = allInteractions.stream()
             .collect(Collectors.groupingBy(

@@ -8,7 +8,11 @@ import com.google.cloud.vertexai.api.GenerateContentResponse;
 import com.google.cloud.vertexai.generativeai.GenerativeModel;
 import com.google.cloud.vertexai.generativeai.ResponseHandler;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,11 +28,17 @@ public class RecipeNLPService {
     
     private static final Logger logger = LoggerFactory.getLogger(RecipeNLPService.class);
     
+    private final String ML_SERVICE_URL = "http://localhost:8000";
+    private final RestTemplate restTemplate = new RestTemplate();
+    
     @Value("${google.cloud.project-id}")
     private String projectId;
     
     @Value("${google.cloud.location}")
     private String location;
+    
+    @Value("${ml.service.url}")
+    private String mlServiceUrl;
     
     private static final String MODEL_NAME = "gemini-1.5-flash";
     
@@ -323,39 +333,40 @@ public class RecipeNLPService {
     /**
      * Recherche sémantique: trouve des recettes similaires à une requête texte
      */
-    public List<RecetteEntity> semanticSearch(
-            String query, 
-            List<RecetteEntity> allRecipes,
-            int limit) {
-        
+    public List<RecetteEntity> semanticSearch(String query, List<RecetteEntity> allRecipes, int limit) {
         try {
-            // Générer embedding de la requête
-            double[] queryEmbedding = generateTextEmbedding(query);
+            // 1. Préparer les Headers pour dire "C'est du JSON"
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            // 2. Créer le corps de la requête (Le "Payload")
+            Map<String, Object> map = new HashMap<>();
+            map.put("query", query);
+            map.put("limit", limit);
+
+            // 3. Créer l'entité qui combine Headers + Body
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(map, headers);
+
+            // 4. Utiliser postForObject avec l'entité
+            Map<String, Object> response = restTemplate.postForObject(
+                mlServiceUrl + "/search/semantic", 
+                entity, // On envoie l'entity ici, pas juste la map
+                Map.class
+            );
+
+            // ... reste de ton code (traitement des resultIds) ...
+            List<Integer> resultIds = (List<Integer>) response.get("results");
             
-            if (queryEmbedding.length == 0) {
-                return new ArrayList<>();
-            }
-            
-            // Calculer similarités
-            Map<RecetteEntity, Double> similarities = new HashMap<>();
-            
-            for (RecetteEntity recipe : allRecipes) {
-                double[] recipeEmbedding = generateRecipeEmbedding(recipe);
-                if (recipeEmbedding.length > 0) {
-                    double similarity = cosineSimilarity(queryEmbedding, recipeEmbedding);
-                    similarities.put(recipe, similarity);
-                }
-            }
-            
-            // Retourner les plus similaires
-            return similarities.entrySet().stream()
-                .sorted(Map.Entry.<RecetteEntity, Double>comparingByValue().reversed())
-                .limit(limit)
-                .map(Map.Entry::getKey)
+            return resultIds.stream()
+                .map(id -> allRecipes.stream()
+                    .filter(r -> r.getId().equals(Long.valueOf(id)))
+                    .findFirst()
+                    .orElse(null))
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
-            
+
         } catch (Exception e) {
-            logger.error("Erreur recherche sémantique", e);
+            logger.error("Erreur de communication : " + e.getMessage());
             return new ArrayList<>();
         }
     }

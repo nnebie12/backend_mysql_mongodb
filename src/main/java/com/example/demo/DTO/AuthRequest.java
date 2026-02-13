@@ -5,6 +5,7 @@ import java.util.List;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -24,11 +25,17 @@ public class AuthRequest {
     @Size(min = 6, message = "Le mot de passe doit contenir au moins 6 caractères")
     private String motDePasse;
     
-    private String preferenceAlimentaire;
-    
+    private List<String> preferenceAlimentaire = new ArrayList<>();    
     private List<String> ingredientsApprecies = new ArrayList<>();
     
     private List<String> ingredientsEvites = new ArrayList<>();
     
     private List<String> contraintesAlimentaires = new ArrayList<>();
+    
+    
+    @Pattern(regexp = "^(debutant|intermediaire|avance|expert)?$", 
+             message = "Niveau de cuisine invalide")
+    private String niveauCuisine;
+    
+    private Boolean newsletter = false;
 }

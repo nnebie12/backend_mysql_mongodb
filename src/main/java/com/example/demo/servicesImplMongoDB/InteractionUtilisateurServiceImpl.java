@@ -40,6 +40,11 @@ public class InteractionUtilisateurServiceImpl implements InteractionUtilisateur
     }
     
     @Override
+    public List<InteractionUtilisateur> getAllInteractions() {
+        return interactionRepository.findAll();
+    }
+    
+    @Override
     public List<InteractionUtilisateur> getInteractionsByUserIdAndType(Long userId, String typeInteraction) {
         return interactionRepository.findByUserIdAndTypeInteraction(userId, typeInteraction);
     }
