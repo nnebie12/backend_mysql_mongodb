@@ -84,6 +84,25 @@ public class NLPController {
     }
     
     /**
+     * GET /api/v1/nlp/users/{userId}/insights
+     * Analyse NLP complète pour un utilisateur
+     */
+    @GetMapping("/users/{userId}/insights")
+    public ResponseEntity<?> getUserNLPInsights(@PathVariable Long userId) {
+        try {
+            // Exemple : retourner des stats NLP pour cet utilisateur
+            Map<String, Object> insights = new HashMap<>();
+            insights.put("userId", userId);
+            insights.put("cacheSize", nlpService.getCacheSize());
+            // Ajoutez ici la logique métier souhaitée
+            return ResponseEntity.ok(insights);
+        } catch (Exception e) {
+            logger.error("Erreur insights NLP pour userId {}", userId, e);
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    /**
      * GET /api/v1/nlp/similar/{recipeId}
      * Trouve les recettes les plus similaires basées sur les embeddings NLP
      */

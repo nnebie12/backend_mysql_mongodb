@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/v1/recommendations")
-@CrossOrigin(origins = "*")
+// ⭐ CORRECTION : Suppression de @CrossOrigin car géré globalement dans SecurityConfig
 public class RecommendationController {
     
     private static final Logger logger = LoggerFactory.getLogger(RecommendationController.class);
@@ -393,9 +393,25 @@ public class RecommendationController {
      * Récupère les recettes populaires (basé sur le nombre d'interactions)
      */
     private List<RecetteResponseDTO> getPopularRecipes(int limit) {
-    	List<RecetteInteraction> allInteractions = interactionRepo.findAll(PageRequest.of(0, 100)).getContent();        
+        List<RecetteInteraction> allInteractions = interactionRepo.findAll(PageRequest.of(0, 100)).getContent();
+        
+        // ⭐ CORRECTION : Filtrer les interactions avec recetteEntity null
+        List<RecetteInteraction> validInteractions = allInteractions.stream()
+            .filter(i -> i.getRecetteEntity() != null)
+            .collect(Collectors.toList());
+        
+        // Si aucune interaction valide, retourner les recettes les plus récentes
+        if (validInteractions.isEmpty()) {
+            logger.info("Aucune interaction valide, retour des recettes récentes");
+            return recetteRepo.findAll().stream()
+                .sorted((r1, r2) -> r2.getId().compareTo(r1.getId()))
+                .limit(limit)
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+        }
+        
         // Compter les interactions par recette
-        Map<Long, Long> recipeInteractionCount = allInteractions.stream()
+        Map<Long, Long> recipeInteractionCount = validInteractions.stream()
             .collect(Collectors.groupingBy(
                 i -> i.getRecetteEntity().getId(),
                 Collectors.counting()

@@ -19,6 +19,12 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.example.demo.DTO.NLPUserInsightsDTO;
+import com.example.demo.entiesMongodb.HistoriqueRecherche;
+import com.example.demo.repositoryMongoDB.CommentaireMongoRepository;
+import com.example.demo.repositoryMongoDB.HistoriqueRechercheRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+
 /**
  * Service NLP pour l'analyse sémantique des recettes
  * Utilise des embeddings textuels et l'analyse de similarité
@@ -30,6 +36,12 @@ public class RecipeNLPService {
     
     private final String ML_SERVICE_URL = "http://localhost:8000";
     private final RestTemplate restTemplate = new RestTemplate();
+    
+    @Autowired
+    private CommentaireMongoRepository commentaireRepository;
+
+    @Autowired
+    private HistoriqueRechercheRepository rechercheRepository;
     
     @Value("${google.cloud.project-id}")
     private String projectId;
@@ -112,6 +124,251 @@ public class RecipeNLPService {
         
         return text.toString().trim();
     }
+    
+ // ── Méthode principale ───────────────────────────────────────────────────────
+
+    /**
+     * Génère une analyse NLP complète pour un utilisateur donné.
+     * Agrège :
+     *  - le sentiment moyen de ses commentaires
+     *  - les mots-clés extraits de ses recherches
+     *  - les topics dominants
+     *  - un profil sémantique pondéré
+     *  - un résumé textuel généré par Gemini
+     *
+     * @param userId ID de l'utilisateur à analyser
+     * @return NLPUserInsightsDTO rempli
+     */
+    public NLPUserInsightsDTO getUserNLPInsights(Long userId) {
+
+        NLPUserInsightsDTO insights = new NLPUserInsightsDTO(userId);
+
+        // 1. Récupération des données brutes
+        List<CommentaireDocument> commentaires = commentaireRepository.findByUserId(String.valueOf(userId));
+        List<HistoriqueRecherche> recherches    = rechercheRepository.findByUserId(userId);
+
+        // ── Garde-fou : données insuffisantes ────────────────────────────────
+        boolean hasComments  = commentaires != null && !commentaires.isEmpty();
+        boolean hasSearches  = recherches   != null && !recherches.isEmpty();
+
+        if (!hasComments && !hasSearches) {
+            insights.setHasSufficientData(false);
+            insights.setDataQualityMessage(
+                "Aucun commentaire ni historique de recherche trouvé pour cet utilisateur.");
+            insights.setAverageSentimentScore(0.0);
+            insights.setTotalCommentsAnalyzed(0);
+            insights.setTopKeywords(List.of());
+            insights.setTopSearchTerms(List.of());
+            insights.setDominantTopics(List.of());
+            insights.setSemanticProfile(Map.of());
+            insights.setProfileSummary("Profil non disponible — données insuffisantes.");
+            return insights;
+        }
+
+        insights.setHasSufficientData(true);
+
+        // 2. Analyse de sentiment sur les commentaires
+        if (hasComments) {
+            double avgSentiment = calculateAverageSentiment(commentaires);
+            insights.setAverageSentimentScore(
+                Math.round(avgSentiment * 100) / 100.0
+            );
+            insights.setTotalCommentsAnalyzed(commentaires.size());
+        } else {
+            insights.setAverageSentimentScore(0.0);
+            insights.setTotalCommentsAnalyzed(0);
+        }
+
+        // 3. Mots-clés extraits des termes de recherche
+        List<String> topSearchTerms = extractTopSearchTerms(recherches, 10);
+        insights.setTopSearchTerms(topSearchTerms);
+
+        // 4. Mots-clés NLP extraits des commentaires (via Gemini)
+        List<String> commentKeywords = extractKeywordsFromComments(commentaires);
+        insights.setTopKeywords(commentKeywords);
+
+        // 5. Topics dominants (fusion recherches + commentaires)
+        List<String> dominantTopics = buildDominantTopics(recherches, commentaires);
+        insights.setDominantTopics(dominantTopics);
+
+        // 6. Profil sémantique pondéré
+        Map<String, Double> semanticProfile = buildSemanticProfile(recherches, commentaires);
+        insights.setSemanticProfile(semanticProfile);
+
+        // 7. Résumé textuel Gemini
+        String summary = generateProfileSummary(userId, insights);
+        insights.setProfileSummary(summary);
+
+        // 8. Taux de recherches fructueuses
+        if (hasSearches) {
+            long fructueuses = recherches.stream()
+                .filter(r -> Boolean.TRUE.equals(r.getRechercheFructueuse()))
+                .count();
+            double taux = (double) fructueuses / recherches.size() * 100;
+            insights.setSuccessfulSearchRate(Math.round(taux * 10) / 10.0);
+        }
+
+        return insights;
+    }
+
+// ── Méthodes privées d'aide ──────────────────────────────────────────────────
+
+    /**
+     * Extrait les termes de recherche les plus fréquents de l'historique.
+     */
+    private List<String> extractTopSearchTerms(List<HistoriqueRecherche> recherches, int limit) {
+        if (recherches == null || recherches.isEmpty()) return List.of();
+
+        return recherches.stream()
+            .collect(Collectors.groupingBy(
+                HistoriqueRecherche::getTerme,
+                Collectors.counting()
+            ))
+            .entrySet().stream()
+            .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+            .limit(limit)
+            .map(Map.Entry::getKey)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Extrait les mots-clés NLP depuis les commentaires via Gemini.
+     * Retourne une liste vide en cas d'erreur pour ne pas bloquer le flux.
+     */
+    private List<String> extractKeywordsFromComments(List<CommentaireDocument> commentaires) {
+        if (commentaires == null || commentaires.isEmpty()) return List.of();
+
+        try (VertexAI vertexAI = new VertexAI(projectId, location)) {
+
+            GenerativeModel model = new GenerativeModel(MODEL_NAME, vertexAI);
+
+            // Concaténer jusqu'à 20 commentaires pour rester dans le contexte
+            String texteAggrege = commentaires.stream()
+                .limit(20)
+                .map(CommentaireDocument::getContenu)
+                .filter(c -> c != null && !c.isBlank())
+                .collect(Collectors.joining(" | "));
+
+            if (texteAggrege.isBlank()) return List.of();
+
+            String prompt = String.format(
+                "Analyse ces commentaires d'un utilisateur sur des recettes de cuisine " +
+                "et extrait les 10 mots-clés culinaires les plus représentatifs.\n\n" +
+                "Commentaires : %s\n\n" +
+                "Retourne uniquement les mots-clés séparés par des virgules, sans explication.\n" +
+                "Exemple : poulet, rapide, épicé, végétarien, grillé",
+                texteAggrege.length() > 1500 ? texteAggrege.substring(0, 1500) : texteAggrege
+            );
+
+            GenerateContentResponse response = model.generateContent(prompt);
+            String keywordsText = ResponseHandler.getText(response);
+
+            return Arrays.stream(keywordsText.split(","))
+                .map(String::trim)
+                .map(String::toLowerCase)
+                .filter(s -> !s.isEmpty())
+                .limit(10)
+                .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            logger.error("Erreur extraction mots-clés commentaires userId: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Construit la liste des topics dominants en fusionnant les catégories
+     * de recherches et les mots-clés de commentaires.
+     */
+    private List<String> buildDominantTopics(
+            List<HistoriqueRecherche> recherches,
+            List<CommentaireDocument> commentaires) {
+
+        Map<String, Long> topicCount = new HashMap<>();
+
+        // Topics issus des catégories de recherche
+        if (recherches != null) {
+            recherches.stream()
+                .map(HistoriqueRecherche::getCategorieRecherche)
+                .filter(Objects::nonNull)
+                .forEach(cat -> topicCount.merge(cat.toUpperCase(), 1L, Long::sum));
+        }
+
+        // Topics issus des termes de recherche (top 5)
+        if (recherches != null) {
+            extractTopSearchTerms(recherches, 5)
+                .forEach(terme -> topicCount.merge(terme, 2L, Long::sum)); // poids x2
+        }
+
+        return topicCount.entrySet().stream()
+            .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+            .limit(5)
+            .map(Map.Entry::getKey)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Construit un profil sémantique pondéré (catégorie → score normalisé 0..1).
+     */
+    private Map<String, Double> buildSemanticProfile(
+            List<HistoriqueRecherche> recherches,
+            List<CommentaireDocument> commentaires) {
+
+        Map<String, Double> raw = new LinkedHashMap<>();
+
+        if (recherches != null && !recherches.isEmpty()) {
+            Map<String, Long> catCount = recherches.stream()
+                .map(HistoriqueRecherche::getCategorieRecherche)
+                .filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(String::toUpperCase, Collectors.counting()));
+
+            long total = catCount.values().stream().mapToLong(Long::longValue).sum();
+            catCount.forEach((cat, count) ->
+                raw.put(cat, Math.round((double) count / total * 100.0) / 100.0)
+            );
+        }
+
+        // Bonus si l'utilisateur commente beaucoup → profil "ACTIF_COMMENTATEUR"
+        if (commentaires != null && commentaires.size() >= 5) {
+            raw.put("ACTIF_COMMENTATEUR", Math.min(1.0,
+                Math.round(commentaires.size() / 20.0 * 100.0) / 100.0));
+        }
+
+        return raw;
+    }
+
+    /**
+     * Génère un résumé textuel du profil culinaire via Gemini.
+     */
+    private String generateProfileSummary(Long userId, NLPUserInsightsDTO insights) {
+        try (VertexAI vertexAI = new VertexAI(projectId, location)) {
+
+            GenerativeModel model = new GenerativeModel(MODEL_NAME, vertexAI);
+
+            String prompt = String.format(
+                "Tu es un expert en analyse culinaire. Rédige en 2-3 phrases un résumé " +
+                "du profil culinaire de cet utilisateur basé sur ces données NLP.\n\n" +
+                "Sentiment moyen : %s (%s)\n" +
+                "Topics dominants : %s\n" +
+                "Mots-clés fréquents : %s\n" +
+                "Taux recherches fructueuses : %.0f%%\n\n" +
+                "Sois concis, positif et personnalisé. Ne mentionne pas de chiffres bruts.",
+                insights.getAverageSentimentScore(),
+                insights.getSentimentLabel(),
+                insights.getDominantTopics(),
+                insights.getTopSearchTerms(),
+                insights.getSuccessfulSearchRate() != null ? insights.getSuccessfulSearchRate() : 0.0
+            );
+
+            GenerateContentResponse response = model.generateContent(prompt);
+            return ResponseHandler.getText(response).trim();
+
+        } catch (Exception e) {
+            logger.error("Erreur génération résumé profil userId {}: {}", userId, e.getMessage());
+            return "Profil en cours de construction — revenez plus tard pour un résumé complet.";
+        }
+    }
+    
     
     /**
      * Génère un embedding à partir de texte avec Gemini

@@ -116,25 +116,32 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // 1. On autorise explicitement les origines de développement
+        // ⭐ CORRECTION : Utiliser le bon format pour allowedOriginPatterns
         configuration.setAllowedOriginPatterns(Arrays.asList(
-            "http://localhost:[*]",
-            "http://127.0.0.1:[*]",
-            "http://*.localhost:[*]"
+            "http://localhost:*",      // ✅ Notation correcte
+            "http://127.0.0.1:*",      // ✅ Notation correcte
+            "chrome-extension://*"      // ✅ Pour l'extension Chrome
         ));
         
-        // 2. On autorise TOUTES les méthodes
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        // Méthodes HTTP autorisées
+        configuration.setAllowedMethods(Arrays.asList(
+            "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"
+        ));
         
-        // 3. On autorise TOUS les headers (indispensable pour les tests)
+        // Headers autorisés
         configuration.setAllowedHeaders(Arrays.asList("*"));
         
-        // 4. On expose les headers dont le frontend a besoin (notamment le JWT)
-        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));
+        // Headers exposés
+        configuration.setExposedHeaders(Arrays.asList(
+            "Authorization", 
+            "Content-Type",
+            "X-Total-Count"
+        ));
         
-        // 5. On autorise les cookies/auth-headers
+        // ⭐ Autorise les credentials (cookies, auth headers)
         configuration.setAllowCredentials(true);
         
+        // Cache de la config CORS (1h)
         configuration.setMaxAge(3600L);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
