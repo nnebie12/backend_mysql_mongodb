@@ -24,7 +24,8 @@ public class RecommandationIAServiceImpl implements RecommandationIAService {
 
     private final RecommandationIARepository recommandationRepository;
     private final ComportementUtilisateurService comportementService;
-    private final SmsService smsService;
+    @Value("${sms.enabled:true}")
+    private boolean smsEnabled;
     private final PropositionRecommandationService propositionRecommandationService;
     private final ComportementUtilisateurRepository comportementUtilisateurRepository;
     private final EnhancedRecommandationService enhancedRecommendationService;
@@ -44,7 +45,6 @@ public class RecommandationIAServiceImpl implements RecommandationIAService {
         this.recommandationRepository = recommandationRepository;
         this.comportementUtilisateurRepository = comportementUtilisateurRepository;
         this.comportementService = comportementService;
-        this.smsService = smsService;
         this.propositionRecommandationService = propositionRecommandationService;
         this.enhancedRecommendationService = enhancedRecommendationService;
         this.aiService = aiService;
@@ -64,6 +64,7 @@ public class RecommandationIAServiceImpl implements RecommandationIAService {
 
         // Appel de la notification SMS APRÈS l'enregistrement de la recommandation
         envoyerNotificationSMS(saved);
+        
 
         return saved;
     }
@@ -546,12 +547,14 @@ public class RecommandationIAServiceImpl implements RecommandationIAService {
      * @param recommendation La recommandation qui vient d'être générée.
      */
     private void envoyerNotificationSMS(RecommandationIA recommendation) {
+    	if (!smsEnabled) return;
+
         String message = "Vous avez une nouvelle recommandation ! Consultez-la ici : https://tonsite.com/recommandations/" + recommendation.getId();
         String numeroUtilisateur = recoverNumberUser(recommendation.getUserId()); 
 
         System.out.println("Tentative d'envoi SMS à : " + numeroUtilisateur);
 
-        if (numeroUtilisateur != null && !numeroUtilisateur.isEmpty()) {
+        /*if (numeroUtilisateur != null && !numeroUtilisateur.isEmpty()) {
             try {
                 smsService.sendSms(numeroUtilisateur, message);
                 System.out.println("SMS programmé avec succès");
@@ -560,7 +563,7 @@ public class RecommandationIAServiceImpl implements RecommandationIAService {
             }
         } else {
             System.err.println("Numéro de téléphone non configuré pour l'utilisateur ID: " + recommendation.getUserId());
-        }
+        }*/
     }
 
     /**

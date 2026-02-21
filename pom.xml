@@ -32,10 +32,21 @@
     	<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 	</properties>
 	<dependencies>
+		<!-- Supprimer les deux occurrences de cloudinary-http44 et mettre : -->
 		<dependency>
-	    <groupId>com.cloudinary</groupId>
-	    <artifactId>cloudinary-http44</artifactId>
-	    <version>1.36.0</version>
+		    <groupId>com.cloudinary</groupId>
+		    <artifactId>cloudinary-http44</artifactId>
+		    <version>1.36.0</version>
+		    <exclusions>
+		        <exclusion>
+		            <groupId>org.apache.httpcomponents</groupId>
+		            <artifactId>httpclient</artifactId>
+		        </exclusion>
+		        <exclusion>
+		            <groupId>org.apache.httpcomponents</groupId>
+		            <artifactId>httpcore</artifactId>
+		        </exclusion>
+		    </exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
