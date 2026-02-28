@@ -143,10 +143,4 @@ public class RecommandationIAController {
         return new ResponseEntity<>(recommandation, HttpStatus.CREATED);
     }
 
-    @PostMapping("/user/{userId}/generer-saison")
-    public ResponseEntity<RecommandationIA> generateSeasonal(
-            @PathVariable Long userId) {
-        RecommandationIA recommandation = recommandationService.genererRecommandationSaisonniere(userId);
-        return new ResponseEntity<>(recommandation, HttpStatus.CREATED);
-    }
 }

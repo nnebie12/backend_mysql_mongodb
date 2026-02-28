@@ -28,11 +28,11 @@ public class InteractionUtilisateurController {
     public ResponseEntity<InteractionUtilisateur> enregistrerInteraction(
             @RequestParam Long userId,
             @RequestParam String typeInteraction, 
-            @RequestParam Long entiteId,
+            @RequestParam Long recetteId,              
             @RequestParam(required = false) Integer dureeConsultation) {
         
         InteractionUtilisateur interaction = interactionService.addInteractionUtilisateur(
-                userId, typeInteraction, entiteId, dureeConsultation);
+                userId, typeInteraction, recetteId, dureeConsultation);
         return new ResponseEntity<>(interaction, HttpStatus.CREATED);
     }
     
@@ -55,11 +55,11 @@ public class InteractionUtilisateurController {
         return new ResponseEntity<>(interactions, HttpStatus.OK);
     }
 
-    @GetMapping("/entite/{entiteId}/type/{typeInteraction}")
-    public ResponseEntity<List<InteractionUtilisateur>> getInteractionsByEntiteIdAndType(
-            @PathVariable Long entiteId, @PathVariable String typeInteraction) {
-        List<InteractionUtilisateur> interactions = interactionService.getInteractionsByEntiteIdAndType(entiteId, typeInteraction);
-        return new ResponseEntity<>(interactions, HttpStatus.OK);
+    @GetMapping("/recette/{recetteId}/type/{typeInteraction}")
+    public ResponseEntity<List<InteractionUtilisateur>> getInteractionsByRecetteIdAndType(
+            @PathVariable Long recetteId, @PathVariable String typeInteraction) {
+        return new ResponseEntity<>(
+                interactionService.getInteractionsByRecetteIdAndType(recetteId, typeInteraction), HttpStatus.OK);
     }
 
     @DeleteMapping("/user/{userId}")

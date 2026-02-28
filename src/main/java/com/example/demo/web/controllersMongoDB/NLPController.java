@@ -217,7 +217,7 @@ public class NLPController {
             RecetteEntity recipe = recetteRepo.findById(recipeId)
                 .orElseThrow(() -> new RuntimeException("Recette non trouvée"));
             
-            List<CommentaireDocument> commentaires = commentaireRepo.findByRecetteEntityId(recipeId);
+            List<CommentaireDocument> commentaires = commentaireRepo.findByRecetteId(recipeId);
             
             if (commentaires.isEmpty()) {
                 return ResponseEntity.ok(Map.of(

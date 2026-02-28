@@ -22,12 +22,12 @@ public class InteractionUtilisateurServiceImpl implements InteractionUtilisateur
     }
     
     @Override
-    public InteractionUtilisateur addInteractionUtilisateur(Long userId, String typeInteraction, Long entiteId, 
+    public InteractionUtilisateur addInteractionUtilisateur(Long userId, String typeInteraction, Long recetteId, 
                                                         Integer dureeConsultation) {
         InteractionUtilisateur interaction = new InteractionUtilisateur();
         interaction.setUserId(userId);
         interaction.setTypeInteraction(typeInteraction);
-        interaction.setEntiteId(entiteId);
+        interaction.setRecetteId(recetteId);
         interaction.setDateInteraction(LocalDateTime.now());
         interaction.setDureeConsultation(dureeConsultation);
         
@@ -50,8 +50,8 @@ public class InteractionUtilisateurServiceImpl implements InteractionUtilisateur
     }
     
     @Override
-    public List<InteractionUtilisateur> getInteractionsByEntiteIdAndType(Long entiteId, String typeInteraction) {
-        return interactionRepository.findByEntiteIdAndTypeInteraction(entiteId, typeInteraction);
+    public List<InteractionUtilisateur> getInteractionsByRecetteIdAndType(Long recetteId, String typeInteraction) {
+        return interactionRepository.findByRecetteIdAndTypeInteraction(recetteId, typeInteraction);
     }
     
     @Override

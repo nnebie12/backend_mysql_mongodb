@@ -22,5 +22,8 @@ public class InteractionUtilisateur {
     private LocalDateTime dateInteraction;
     
     private Integer dureeConsultation; 
+    
+    private Long recetteId;
+
         
 }

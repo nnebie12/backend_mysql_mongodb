@@ -34,7 +34,7 @@ public class RecommandationIA {
     private Boolean estUtilise;
     
     @Indexed
-    private RecetteEntity recetteEntity;
+    private Long recetteId;
     
     // Champs pour l'intégration avec ComportementUtilisateur
     private String comportementUtilisateurId;

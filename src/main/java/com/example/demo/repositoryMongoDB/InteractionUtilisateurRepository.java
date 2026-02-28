@@ -12,6 +12,6 @@ public interface InteractionUtilisateurRepository extends MongoRepository<Intera
 	
     List<InteractionUtilisateur> findByUserId(Long userId);
     List<InteractionUtilisateur> findByUserIdAndTypeInteraction(Long userId, String typeInteraction);
-    List<InteractionUtilisateur> findByEntiteIdAndTypeInteraction(Long entiteId, String typeInteraction);
+    List<InteractionUtilisateur> findByRecetteIdAndTypeInteraction(Long recetteId, String typeInteraction);
     void deleteByUserId(Long userId);
 }

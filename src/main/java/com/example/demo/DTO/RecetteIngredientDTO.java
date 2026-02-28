@@ -4,9 +4,9 @@ import lombok.Data;
 
 @Data
 public class RecetteIngredientDTO {
-    private Long recetteEntityId;
+    private Long recetteId;
     private Long ingredientEntityId;
     private String quantite;
-    private String instruction;
+    private String uniteMesure;
     private String ingredientName;
 }

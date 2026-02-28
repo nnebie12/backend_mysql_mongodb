@@ -28,7 +28,7 @@ public class RecetteIngredientServiceImpl implements RecetteIngredientService {
     
     @Override
     public RecetteIngredientEntity addIngredientRecetteEntity(Long recetteEntityId, Long ingredientEntityId,
-            String quantite, String instruction) {
+            String quantite, String uniteMesure) {
         Optional<RecetteEntity> recetteOpt = recetteRepository.findById(recetteEntityId);
         if (recetteOpt.isEmpty()) {
             return null;
@@ -47,7 +47,7 @@ public class RecetteIngredientServiceImpl implements RecetteIngredientService {
         recetteIngredientEntity.setRecetteEntity(recetteOpt.get());
         recetteIngredientEntity.setIngredientEntity(ingredientOpt.get());
         recetteIngredientEntity.setQuantite(quantite);
-        recetteIngredientEntity.setInstruction(instruction);
+        recetteIngredientEntity.setUniteMesure(uniteMesure);
         
         return recetteIngredientRepository.save(recetteIngredientEntity);
     }

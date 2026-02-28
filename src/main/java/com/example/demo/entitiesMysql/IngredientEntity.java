@@ -22,6 +22,12 @@ public class IngredientEntity {
 	    @Column(nullable = false, unique = true)
 	    private String nom;
 	    
+	    @Column(name = "categorie", length = 100)
+	    private String categorie;
+	    
+	    @Column(name = "unite_mesure", length = 50)
+	    private String uniteMesure;
+	    
 	    @OneToMany(mappedBy = "ingredientEntity")
 	    private List<RecetteIngredientEntity> recetteIngredients;
 	

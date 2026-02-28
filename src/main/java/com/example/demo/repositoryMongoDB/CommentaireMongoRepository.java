@@ -10,5 +10,5 @@ public interface CommentaireMongoRepository extends MongoRepository<CommentaireD
     
     List<CommentaireDocument> findByUserId(String userId);
 
-	List<CommentaireDocument> findByRecetteEntityId(Long recetteEntityId);
+	List<CommentaireDocument> findByRecetteId(Long recetteId);
 }

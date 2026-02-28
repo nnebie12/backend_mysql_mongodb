@@ -38,5 +38,5 @@ public class RecetteInteraction {
     
     private String adresseIP; 
     
-    private RecetteEntity recetteEntity;
+    private Long recetteId;
 }

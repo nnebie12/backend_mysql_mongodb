@@ -52,44 +52,57 @@ import com.example.demo.servicesMysql.RecetteService;
 	     this.recetteDetailsRepository = recetteDetailsRepository;
 	     this.ingredientRepository = ingredientRepository;
 	 }
+	 
+	 private void mapRequestDTOToEntity(RecetteRequestDTO dto, RecetteEntity entity) {
+	        entity.setTitre(dto.getTitre());
+	        entity.setDescription(dto.getDescription());
+	        entity.setTempsPreparation(dto.getTempsPreparation());
+	        entity.setTempsCuisson(dto.getTempsCuisson());
+	        entity.setDifficulte(dto.getDifficulte());
+
+	        // ✅ CORRECTION : propagation des nouveaux champs du DTO vers l'entité
+	        entity.setCuisine(dto.getCuisine());
+	        entity.setTypeRecette(dto.getTypeRecette());
+	        entity.setVegetarien(dto.getVegetarien());
+	        entity.setCategorie(dto.getCategorie());
+	        entity.setSaison(dto.getSaison());
+	        entity.setTypeCuisine(dto.getTypeCuisine());
+	        if (dto.getImageUrl() != null) {
+	            entity.setImageUrl(dto.getImageUrl());
+	        }
+	    }
 	
 	 @Override
-	 @Transactional
-	 public RecetteResponseDTO saveRecette(RecetteRequestDTO recetteDTO, Long userEntityId) {
-	     UserEntity userEntity = userRepository.findById(userEntityId)
-	             .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé avec l'ID: " + userEntityId));
-	
-	     RecetteEntity recetteEntity = new RecetteEntity();
-	     recetteEntity.setTitre(recetteDTO.getTitre());
-	     recetteEntity.setDescription(recetteDTO.getDescription());
-	     recetteEntity.setTempsPreparation(recetteDTO.getTempsPreparation());
-	     recetteEntity.setTempsCuisson(recetteDTO.getTempsCuisson());
-	     recetteEntity.setDifficulte(recetteDTO.getDifficulte());
-	     recetteEntity.setUserEntity(userEntity);
-	     recetteEntity.setDateCreation(LocalDateTime.now());
-	
-	     RecetteEntity savedRecette = recetteRepository.save(recetteEntity);
-	
-	     try {
-	         RecetteDetailsDocument recetteDetails = new RecetteDetailsDocument();
-	         recetteDetails.setRecetteId(savedRecette.getId().toString());
-	         recetteDetails.setCommentaires(new ArrayList<>());
-	         recetteDetails.setNotes(new ArrayList<>());
-	         recetteDetails.setMoyenneNotes(0.0);
-	         recetteDetails.setNombreCommentaires(0);
-	         recetteDetails.setNombreNotes(0);
-	
-	         RecetteDetailsDocument savedDetails = recetteDetailsRepository.save(recetteDetails);
-	
-	         savedRecette.setRecetteMongoId(savedDetails.getId());
-	         recetteRepository.save(savedRecette);
-	     } catch (Exception e) {
-	         System.err.println("Erreur lors de l'enregistrement dans MongoDB pour la recette " + savedRecette.getId() + ": " + e.getMessage());
-	         
-	     }
-	
-	     return convertToRecetteResponseDTO(savedRecette);
-	 }
+	    @Transactional
+	    public RecetteResponseDTO saveRecette(RecetteRequestDTO recetteDTO, Long userEntityId) {
+	        UserEntity userEntity = userRepository.findById(userEntityId)
+	                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé avec l'ID: " + userEntityId));
+
+	        RecetteEntity recetteEntity = new RecetteEntity();
+	        mapRequestDTOToEntity(recetteDTO, recetteEntity); 
+	        recetteEntity.setUserEntity(userEntity);
+	        recetteEntity.setDateCreation(LocalDateTime.now());
+
+	        RecetteEntity savedRecette = recetteRepository.save(recetteEntity);
+
+	        try {
+	            RecetteDetailsDocument recetteDetails = new RecetteDetailsDocument();
+	            recetteDetails.setRecetteId(savedRecette.getId().toString());
+	            recetteDetails.setCommentaires(new ArrayList<>());
+	            recetteDetails.setNotes(new ArrayList<>());
+	            recetteDetails.setMoyenneNotes(0.0);
+	            recetteDetails.setNombreCommentaires(0);
+	            recetteDetails.setNombreNotes(0);
+
+	            RecetteDetailsDocument savedDetails = recetteDetailsRepository.save(recetteDetails);
+	            savedRecette.setRecetteMongoId(savedDetails.getId());
+	            recetteRepository.save(savedRecette);
+	        } catch (Exception e) {
+	            System.err.println("Erreur MongoDB pour la recette " + savedRecette.getId() + ": " + e.getMessage());
+	        }
+
+	        return convertToRecetteResponseDTO(savedRecette);
+	    }
 	
 	 @Override
 	 public List<RecetteResponseDTO> getAllRecettes() {
@@ -105,20 +118,15 @@ import com.example.demo.servicesMysql.RecetteService;
 	 }
 	
 	 @Override
-	 @Transactional
-	 public RecetteResponseDTO updateRecette(Long id, RecetteRequestDTO recetteDetailsDTO) {
-	     RecetteEntity recetteEntity = recetteRepository.findById(id)
-	             .orElseThrow(() -> new RuntimeException("Recette non trouvée avec l'ID: " + id));
-	
-	     recetteEntity.setTitre(recetteDetailsDTO.getTitre());
-	     recetteEntity.setDescription(recetteDetailsDTO.getDescription());
-	     recetteEntity.setTempsPreparation(recetteDetailsDTO.getTempsPreparation());
-	     recetteEntity.setTempsCuisson(recetteDetailsDTO.getTempsCuisson());
-	     recetteEntity.setDifficulte(recetteDetailsDTO.getDifficulte());
-	
-	     RecetteEntity updatedRecette = recetteRepository.save(recetteEntity);
-	     return convertToRecetteResponseDTO(updatedRecette);
-	 }
+	    @Transactional
+	    public RecetteResponseDTO updateRecette(Long id, RecetteRequestDTO recetteDetailsDTO) {
+	        RecetteEntity recetteEntity = recetteRepository.findById(id)
+	                .orElseThrow(() -> new RuntimeException("Recette non trouvée avec l'ID: " + id));
+
+	        mapRequestDTOToEntity(recetteDetailsDTO, recetteEntity); 
+
+	        return convertToRecetteResponseDTO(recetteRepository.save(recetteEntity));
+	    }
 	
 	 @Override
 	 @Transactional
@@ -189,6 +197,8 @@ import com.example.demo.servicesMysql.RecetteService;
 	     commentaireDocument.setDateCommentaire(LocalDateTime.now());
 	     commentaireDocument.setUserId(userEntity.getId().toString());
 	     commentaireDocument.setUserName(userEntity.getPrenom());
+	     commentaireDocument.setRecetteId(recetteEntity.getId());
+
 	
 	     if (details.getCommentaires() == null) {
 	         details.setCommentaires(new ArrayList<>());
@@ -335,6 +345,11 @@ import com.example.demo.servicesMysql.RecetteService;
 	     dto.setDifficulte(recetteEntity.getDifficulte());
 	     dto.setDateCreation(recetteEntity.getDateCreation());
 	     dto.setRecetteMongoId(recetteEntity.getRecetteMongoId());
+	     
+	     dto.setPopularite(recetteEntity.getPopularite());
+         dto.setCategorie(recetteEntity.getCategorie());
+         dto.setSaison(recetteEntity.getSaison());
+         dto.setTypeCuisine(recetteEntity.getTypeCuisine());
 	
 	     if (recetteEntity.getUserEntity() != null) {
 	         dto.setUserId(recetteEntity.getUserEntity().getId());
@@ -359,12 +374,12 @@ import com.example.demo.servicesMysql.RecetteService;
 	 }
 	
 	 private RecetteIngredientDTO convertToRecetteIngredientDTO(RecetteIngredientEntity recetteIngredientEntity) {
-	     RecetteIngredientDTO dto = new RecetteIngredientDTO();
-	     dto.setQuantite(recetteIngredientEntity.getQuantite());
-	     if (recetteIngredientEntity.getIngredientEntity() != null) {
-	        
-	         dto.setIngredientName(recetteIngredientEntity.getIngredientEntity().getNom());
-	     }
-	     return dto;
-	 }
+	        RecetteIngredientDTO dto = new RecetteIngredientDTO();
+	        dto.setQuantite(recetteIngredientEntity.getQuantite());
+	        dto.setUniteMesure(recetteIngredientEntity.getUniteMesure());
+	        if (recetteIngredientEntity.getIngredientEntity() != null) {
+	            dto.setIngredientName(recetteIngredientEntity.getIngredientEntity().getNom());
+	        }
+	        return dto;
+	    }
 }

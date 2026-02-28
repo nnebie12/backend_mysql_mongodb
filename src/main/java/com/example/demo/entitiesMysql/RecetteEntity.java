@@ -32,6 +32,18 @@ public class RecetteEntity {
     
     @Column(name = "cuisine")
     private String cuisine; 
+    
+    @Column(name = "popularite")
+    private Double popularite;
+    
+    @Column(name = "categorie", length = 100)
+    private String categorie;
+    
+    @Column(name = "saison", length = 20)
+    private String saison;
+    
+    @Column(name = "type_cuisine", length = 100)
+    private String typeCuisine;
 
     @Column(name = "type_recette")
     private String typeRecette; 

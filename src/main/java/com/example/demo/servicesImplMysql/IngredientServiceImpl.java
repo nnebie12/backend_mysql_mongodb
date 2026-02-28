@@ -50,6 +50,13 @@ private final IngredientRepository ingredientRepository;
         
         ingredient.setNom(ingredientDetails.getNom());
         
+        if (ingredientDetails.getCategorie() != null) {
+            ingredient.setCategorie(ingredientDetails.getCategorie());
+        }
+        if (ingredientDetails.getUniteMesure() != null) {
+            ingredient.setUniteMesure(ingredientDetails.getUniteMesure());
+        }
+
         return ingredientRepository.save(ingredient);
     }
 }

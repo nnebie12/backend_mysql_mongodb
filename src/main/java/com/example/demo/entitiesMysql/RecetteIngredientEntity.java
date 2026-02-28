@@ -37,6 +37,6 @@ public class RecetteIngredientEntity {
     @Column(name = "quantite", nullable = false)
     private String quantite;
     
-    @Column(name = "instruction")
-    private String instruction;
+    @Column(name = "unite_mesure", length = 50)
+    private String uniteMesure;
 }

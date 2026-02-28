@@ -4,8 +4,9 @@ import java.util.List;
 import com.example.demo.entitiesMysql.RecetteIngredientEntity;
 
 public interface RecetteIngredientService {
-    RecetteIngredientEntity addIngredientRecetteEntity(Long recetteEntityId, Long ingredientEntityId, String quantite, String instruction);
-    
+	RecetteIngredientEntity addIngredientRecetteEntity(Long recetteEntityId, Long ingredientEntityId,
+            String quantite, String uniteMesure);
+	
     List<RecetteIngredientEntity> getIngredientsByRecetteEntityId(Long recetteEntityId);
     
     void deleteIngredientRecetteEntity(Long recetteEntityId, Long ingredientEntityId); 

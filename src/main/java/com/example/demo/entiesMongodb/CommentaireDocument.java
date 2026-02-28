@@ -19,5 +19,5 @@ public class CommentaireDocument {
     private LocalDateTime dateCommentaire;
     private String userId;
     private String userName;
-    private RecetteEntity recetteEntity;
+    private Long recetteId;
 }

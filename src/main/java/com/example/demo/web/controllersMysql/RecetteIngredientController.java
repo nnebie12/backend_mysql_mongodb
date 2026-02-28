@@ -28,7 +28,7 @@ public class RecetteIngredientController {
     @PostMapping
     public ResponseEntity<RecetteIngredientEntity> addIngredientRecetteEntity(@RequestBody RecetteIngredientDTO dto) {
         RecetteIngredientEntity recetteIngredientEntity = recetteIngredientService.addIngredientRecetteEntity(
-                dto.getRecetteEntityId(), dto.getIngredientEntityId(), dto.getQuantite(), dto.getInstruction());
+                dto.getRecetteId(), dto.getIngredientEntityId(), dto.getQuantite(), dto.getUniteMesure());
         return new ResponseEntity<>(recetteIngredientEntity, HttpStatus.CREATED);
     }
 
