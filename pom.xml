@@ -162,36 +162,7 @@
 			<artifactId>spring-boot-starter-aop</artifactId>
 		</dependency>
 		
-		<!-- ========================================= -->
-        <!-- GOOGLE CLOUD VERTEX AI - GEMINI          -->
-        <!-- ========================================= -->
-        <dependency>
-            <groupId>com.google.cloud</groupId>
-            <artifactId>google-cloud-vertexai</artifactId>
-            <version>1.7.0</version>
-        </dependency>
-        
-        <dependency>
-            <groupId>com.google.cloud</groupId>
-            <artifactId>google-cloud-aiplatform</artifactId>
-            <version>3.41.0</version>
-        </dependency>
-        
-        <!-- Authentication Google Cloud -->
-        <dependency>
-            <groupId>com.google.auth</groupId>
-            <artifactId>google-auth-library-oauth2-http</artifactId>
-            <version>1.23.0</version>
-        </dependency>
-
-		<!-- ========================================= -->
-        <!-- CLOUDINARY - Image Hosting                -->
-        <!-- ========================================= -->
-        <dependency>
-            <groupId>com.cloudinary</groupId>
-            <artifactId>cloudinary-http44</artifactId>
-            <version>1.36.0</version>
-        </dependency>	
+		
         
         <dependency>
             <groupId>org.modelmapper</groupId>

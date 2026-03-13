@@ -12,7 +12,7 @@ import com.example.demo.entitiesMysql.RecetteEntity;
 import com.example.demo.repositoryMongoDB.NoteMongoRepository;
 import com.example.demo.repositoryMongoDB.RecetteInteractionRepository;
 import com.example.demo.repositoryMysql.RecetteRepository;
-import com.example.demo.servicesMongoDB.GeminiRecommendationService;
+import com.example.demo.servicesMongoDB.RecommandationIAService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +33,7 @@ public class RecommendationController {
     private static final Logger logger = LoggerFactory.getLogger(RecommendationController.class);
 
     @Autowired
-    private GeminiRecommendationService aiService;
+    private RecommandationIAService recommandationService;
 
     @Autowired
     private RecetteInteractionRepository interactionRepo;
@@ -63,12 +63,10 @@ public class RecommendationController {
             }
 
             List<NoteDocument> userRatings = noteRepo.findByUserId(userId);
-
-            // ✅ findAllWithUser() — un seul SELECT avec JOIN sur userEntity
             List<RecetteEntity> allRecipes = recetteRepo.findAllWithUser();
 
             List<RecetteResponseDTO> recommendations =
-                aiService.getPersonalizedRecommendations(userId, history, allRecipes, userRatings);
+                recommandationService.getPersonalizedRecommendations(userId, history, allRecipes, userRatings);
 
             recommendations = recommendations.stream()
                 .limit(limit)
@@ -104,10 +102,9 @@ public class RecommendationController {
             RecetteEntity recipe = recetteRepo.findById(recipeId)
                 .orElseThrow(() -> new RuntimeException("Recette non trouvée"));
 
-            // ✅ findAllWithUser()
             List<RecetteEntity> allRecipes = recetteRepo.findAllWithUser();
 
-            List<RecetteResponseDTO> similar = aiService.findSimilarRecipes(recipe, allRecipes);
+            List<RecetteResponseDTO> similar = recommandationService.findSimilarRecipes(recipe, allRecipes);
             similar = similar.stream().limit(limit).collect(Collectors.toList());
 
             logger.info("Trouvé {} recettes similaires à '{}'", similar.size(), recipe.getTitre());
@@ -136,10 +133,10 @@ public class RecommendationController {
         logger.info("Requête d'analyse des tendances");
         try {
             List<RecetteInteraction> allInteractions = interactionRepo.findAll();
-            Map<String, Object> trends = aiService.detectTrends(allInteractions);
+            Map<String, Object> trends = recommandationService.detectTrends(allInteractions);
             return ResponseEntity.ok(trends);
         } catch (Exception e) {
-            logger.warn("Gemini Error, switching to basic trends: {}", e.getMessage());
+            logger.warn("Erreur tendances, fallback basique : {}", e.getMessage());
             return ResponseEntity.ok(Map.of(
                 "trending_categories", List.of("Général"),
                 "message", "Tendances basiques (IA indisponible)"
@@ -152,8 +149,6 @@ public class RecommendationController {
         logger.info("Génération de recommandations 'Pour vous' pour l'utilisateur {}", userId);
         try {
             List<RecetteInteraction> history = interactionRepo.findByIdUser(userId);
-
-            // ✅ findAllWithUser()
             List<RecetteEntity> allRecipes = recetteRepo.findAllWithUser();
             List<NoteDocument> userRatings = noteRepo.findByUserId(userId);
 
@@ -161,7 +156,7 @@ public class RecommendationController {
 
             if (!history.isEmpty()) {
                 List<RecetteResponseDTO> personalized =
-                    aiService.getPersonalizedRecommendations(userId, history, allRecipes, userRatings);
+                    recommandationService.getPersonalizedRecommendations(userId, history, allRecipes, userRatings);
                 forYou.put("personalized", personalized.stream().limit(5).collect(Collectors.toList()));
             }
 
@@ -174,7 +169,6 @@ public class RecommendationController {
             forYou.put("user_id", userId);
             forYou.put("generated_at", java.time.LocalDateTime.now());
 
-            logger.info("Recommandations 'Pour vous' générées pour l'utilisateur {}", userId);
             return ResponseEntity.ok(forYou);
 
         } catch (Exception e) {
@@ -240,7 +234,6 @@ public class RecommendationController {
         try {
             List<RecetteInteraction> history = interactionRepo.findByIdUser(userId);
 
-           
             List<Long> recetteIds = history.stream()
                     .map(RecetteInteraction::getIdRecette)
                     .filter(Objects::nonNull)
@@ -311,7 +304,6 @@ public class RecommendationController {
         dto.setCuisine(entity.getCuisine());
         dto.setImageUrl(entity.getImageUrl());
         dto.setVegetarien(entity.getVegetarien());
-        
         dto.setPopularite(entity.getPopularite());
         dto.setCategorie(entity.getCategorie());
         dto.setSaison(entity.getSaison());

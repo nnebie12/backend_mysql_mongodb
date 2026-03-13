@@ -5,17 +5,20 @@ import java.util.*;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import com.example.demo.DTO.RecetteResponseDTO;
+import com.example.demo.entiesMongodb.NoteDocument;
 import com.example.demo.entiesMongodb.RecommandationIA;
 import com.example.demo.entiesMongodb.RecommandationIA.RecommandationDetail;
 import com.example.demo.entiesMongodb.ComportementUtilisateur;
+import com.example.demo.entiesMongodb.RecetteInteraction;
 import com.example.demo.entiesMongodb.enums.ProfilUtilisateur;
 import com.example.demo.entiesMongodb.enums.Saison;
+import com.example.demo.entitiesMysql.RecetteEntity;
 import com.example.demo.repositoryMongoDB.ComportementUtilisateurRepository;
 import com.example.demo.repositoryMongoDB.RecommandationIARepository;
 import com.example.demo.servicesMongoDB.RecommandationIAService;
 import com.example.demo.servicesMongoDB.ComportementUtilisateurService;
 import com.example.demo.servicesMongoDB.EnhancedRecommandationService;
-import com.example.demo.servicesMongoDB.GeminiRecommendationService;
 import com.example.demo.servicesMongoDB.PropositionRecommandationService;
 import com.example.demo.servicesMysql.SmsService;
 
@@ -24,13 +27,13 @@ public class RecommandationIAServiceImpl implements RecommandationIAService {
 
     private final RecommandationIARepository recommandationRepository;
     private final ComportementUtilisateurService comportementService;
-    @Value("${sms.enabled:true}")
-    private boolean smsEnabled;
     private final PropositionRecommandationService propositionRecommandationService;
     private final ComportementUtilisateurRepository comportementUtilisateurRepository;
     private final EnhancedRecommandationService enhancedRecommendationService;
-    private final GeminiRecommendationService aiService;
+    private final OllamaRecommendationServiceImpl ollamaService;
 
+    @Value("${sms.enabled:true}")
+    private boolean smsEnabled;
 
     @Value("${sms.recipient}")
     private String smsRecipient;
@@ -39,90 +42,90 @@ public class RecommandationIAServiceImpl implements RecommandationIAService {
                                        ComportementUtilisateurService comportementService,
                                        SmsService smsService,
                                        PropositionRecommandationService propositionRecommandationService,
-                                       ComportementUtilisateurRepository comportementUtilisateurRepository, 
+                                       ComportementUtilisateurRepository comportementUtilisateurRepository,
                                        EnhancedRecommandationService enhancedRecommendationService,
-                                       GeminiRecommendationService aiService) {
-        this.recommandationRepository = recommandationRepository;
+                                       OllamaRecommendationServiceImpl ollamaService) {
+        this.recommandationRepository         = recommandationRepository;
         this.comportementUtilisateurRepository = comportementUtilisateurRepository;
-        this.comportementService = comportementService;
+        this.comportementService              = comportementService;
         this.propositionRecommandationService = propositionRecommandationService;
-        this.enhancedRecommendationService = enhancedRecommendationService;
-        this.aiService = aiService;
+        this.enhancedRecommendationService    = enhancedRecommendationService;
+        this.ollamaService                    = ollamaService;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  MÉTHODES IA DIRECTES (délégation vers Ollama)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @Override
+    public List<RecetteResponseDTO> getPersonalizedRecommendations(
+            Long userId,
+            List<RecetteInteraction> userHistory,
+            List<RecetteEntity> allRecipes,
+            List<NoteDocument> userRatings) {
+        return ollamaService.getPersonalizedRecommendations(userId, userHistory, allRecipes, userRatings);
     }
 
     @Override
-    public RecommandationIA addRecommandation(Long userId, String type, List<RecommandationDetail> recommandation, Double score) {
-        RecommandationIA newRecommandation = new RecommandationIA();
-        newRecommandation.setUserId(userId);
-        newRecommandation.setType(type);
-        newRecommandation.setRecommandation(recommandation);
-        newRecommandation.setScore(score);
-        newRecommandation.setDateRecommandation(LocalDateTime.now());
-        newRecommandation.setEstUtilise(false);
+    public List<RecetteResponseDTO> findSimilarRecipes(RecetteEntity targetRecipe,
+                                                        List<RecetteEntity> allRecipes) {
+        return ollamaService.findSimilarRecipes(targetRecipe, allRecipes);
+    }
 
-        RecommandationIA saved = recommandationRepository.save(newRecommandation);
+    @Override
+    public Map<String, Object> detectTrends(List<RecetteInteraction> allInteractions) {
+        return ollamaService.detectTrends(allInteractions);
+    }
 
-        // Appel de la notification SMS APRÈS l'enregistrement de la recommandation
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  CRUD / ACCÈS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @Override
+    public RecommandationIA addRecommandation(Long userId, String type,
+                                               List<RecommandationDetail> recommandation,
+                                               Double score) {
+        RecommandationIA newRec = new RecommandationIA();
+        newRec.setUserId(userId);
+        newRec.setType(type);
+        newRec.setRecommandation(recommandation);
+        newRec.setScore(score);
+        newRec.setDateRecommandation(LocalDateTime.now());
+        newRec.setEstUtilise(false);
+        RecommandationIA saved = recommandationRepository.save(newRec);
         envoyerNotificationSMS(saved);
-        
-
         return saved;
     }
-    
-    /**
-     * ✅ Indispensable pour le panneau d'administration
-     * Récupère toutes les recommandations de la base MongoDB
-     */
+
     @Override
     public List<RecommandationIA> getAllRecommandations() {
         return recommandationRepository.findAll();
     }
 
-    /**
-     * ✅ Récupère et trie les recommandations par pertinence (score)
-     */
     @Override
     public List<RecommandationIA> getRecommandationsAvecScore(Long userId) {
-        List<RecommandationIA> recommendations = recommandationRepository.findByUserId(userId);
-        
-        if (recommendations != null) {
-            // Tri décroissant : le plus haut score en premier
-            recommendations.sort((r1, r2) -> Double.compare(
-                r2.getScore() != null ? r2.getScore() : 0.0,
-                r1.getScore() != null ? r1.getScore() : 0.0
-            ));
+        List<RecommandationIA> list = recommandationRepository.findByUserId(userId);
+        if (list != null) {
+            list.sort((a, b) -> Double.compare(
+                b.getScore() != null ? b.getScore() : 0.0,
+                a.getScore() != null ? a.getScore() : 0.0));
         }
-        
-        return recommendations;
+        return list;
     }
 
-    /**
-     * ✅ Logique décisionnelle pour choisir le type de génération
-     */
     @Override
     public String suggererMeilleurTypeRecommandation(Long userId) {
-        Optional<ComportementUtilisateur> comportementOpt = comportementService.getBehaviorByUserId(userId);
-        
-        if (comportementOpt.isEmpty()) {
-            return "PERSONNALISEE";
+        Optional<ComportementUtilisateur> opt = comportementService.getBehaviorByUserId(userId);
+        if (opt.isEmpty()) return "PERSONNALISEE";
+        ComportementUtilisateur c = opt.get();
+        if (c.getMetriques() != null) {
+            ProfilUtilisateur profil = c.getMetriques().getProfilUtilisateur();
+            Double score = c.getMetriques().getScoreEngagement();
+            if (profil == ProfilUtilisateur.NOUVEAU) return "ENGAGEMENT";
+            if (score != null && score > 70) return "HYBRIDE";
+            if (c.getPreferencesSaisonnieres() != null &&
+                c.getPreferencesSaisonnieres().getSaisonPreferee() != null) return "SAISONNIERE";
         }
-        
-        ComportementUtilisateur comportement = comportementOpt.get();
-        
-        if (comportement.getMetriques() != null) {
-            ProfilUtilisateur profil = comportement.getMetriques().getProfilUtilisateur();
-            Double scoreEngagement = comportement.getMetriques().getScoreEngagement();
-            
-            if (profil == ProfilUtilisateur.NOUVEAU) {
-                return "ENGAGEMENT";
-            } else if (scoreEngagement != null && scoreEngagement > 70) {
-                return "HYBRIDE"; 
-            } else if (comportement.getPreferencesSaisonnieres() != null && 
-                      comportement.getPreferencesSaisonnieres().getSaisonPreferee() != null) {
-                return "SAISONNIERE";
-            }
-        }
-        
         return "PERSONNALISEE";
     }
 
@@ -138,460 +141,317 @@ public class RecommandationIAServiceImpl implements RecommandationIAService {
 
     @Override
     public RecommandationIA markAsUsed(String recommandationId) {
-        RecommandationIA recommandation = recommandationRepository.findById(recommandationId)
-                .orElseThrow(() -> new RuntimeException("Recommandation non trouvée avec l'ID: " + recommandationId));
-
-        recommandation.setEstUtilise(true);
-
-        comportementService.enregistrerInteraction(
-                recommandation.getUserId(),
-                "RECOMMANDATION_UTILISEE",
-                recommandationId,
-                "score:" + recommandation.getScore()
-        );
-
-        return recommandationRepository.save(recommandation);
+        RecommandationIA rec = recommandationRepository.findById(recommandationId)
+                .orElseThrow(() -> new RuntimeException("Recommandation non trouvée : " + recommandationId));
+        rec.setEstUtilise(true);
+        comportementService.enregistrerInteraction(rec.getUserId(), "RECOMMANDATION_UTILISEE",
+                recommandationId, "score:" + rec.getScore());
+        return recommandationRepository.save(rec);
     }
 
     @Override
     public void deleteRecommandationsUser(Long userId) {
-        List<RecommandationIA> recommandations = recommandationRepository.findByUserId(userId);
-        if (recommandations != null && !recommandations.isEmpty()) {
-            recommandationRepository.deleteAll(recommandations);
-        }
+        List<RecommandationIA> list = recommandationRepository.findByUserId(userId);
+        if (list != null && !list.isEmpty()) recommandationRepository.deleteAll(list);
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  GÉNÉRATION
+    // ═══════════════════════════════════════════════════════════════════════════
 
     @Override
     public RecommandationIA genererRecommandationPersonnalisee(Long userId) {
-        RecommandationIA newRecommandation = initialiserNouvelleRecommandation(userId, "PERSONNALISEE");
-        Optional<ComportementUtilisateur> comportementOpt = comportementService.getBehaviorByUserId(userId);
-
-        List<RecommandationDetail> details = new ArrayList<>();
+        RecommandationIA rec = initialiser(userId, "PERSONNALISEE");
+        Optional<ComportementUtilisateur> opt = comportementService.getBehaviorByUserId(userId);
+        List<RecommandationDetail> details;
         double score;
-
-        if (comportementOpt.isEmpty()) {
-            details.addAll(genererRecommandationsParDefautDetails());
-            score = 50.0;
+        if (opt.isEmpty()) {
+            details = defautDetails(); score = 50.0;
         } else {
-            ComportementUtilisateur comportement = comportementOpt.get();
-            ProfilUtilisateur profil = (comportement.getMetriques() != null && comportement.getMetriques().getProfilUtilisateur() != null) ?
-                    comportement.getMetriques().getProfilUtilisateur() : ProfilUtilisateur.NOUVEAU;
-
-            switch (profil) {
-                case NOUVEAU:
-                    details.addAll(genererRecommandationsNouvelUtilisateur());
-                    break;
-                case ACTIF:
-                    details.addAll(genererRecommandationsUtilisateurActif(comportement));
-                    break;
-                case FIDELE:
-                    details.addAll(genererRecommandationsUtilisateurFidele(comportement));
-                    break;
-                default:
-                    details.addAll(genererRecommandationsGeneriques(comportement));
-            }
-            score = calculerScoreRecommandation(comportement, details);
-
-            newRecommandation.setComportementUtilisateurId(comportement.getId());
-            newRecommandation.setProfilUtilisateurCible(profil.name());
-            if (comportement.getMetriques() != null && comportement.getMetriques().getScoreEngagement() != null) {
-                newRecommandation.setScoreEngagementReference(comportement.getMetriques().getScoreEngagement());
-            }
+            ComportementUtilisateur c = opt.get();
+            ProfilUtilisateur profil = profil(c);
+            details = switch (profil) {
+                case NOUVEAU -> nouveauDetails();
+                case ACTIF   -> actifDetails(c);
+                case FIDELE  -> fideleDetails(c);
+                default      -> generiquesDetails(c);
+            };
+            score = calculerScore(c, details);
+            rec.setComportementUtilisateurId(c.getId());
+            rec.setProfilUtilisateurCible(profil.name());
+            if (c.getMetriques() != null && c.getMetriques().getScoreEngagement() != null)
+                rec.setScoreEngagementReference(c.getMetriques().getScoreEngagement());
         }
-
-        newRecommandation.setRecommandation(details);
-        newRecommandation.setScore(score);
-
-        RecommandationIA savedRecommandation = recommandationRepository.save(newRecommandation);
-        propositionRecommandationService.createProposition(savedRecommandation.getUserId(), savedRecommandation.getId(), 3);
-        envoyerNotificationSMS(savedRecommandation); 
-        return savedRecommandation;
-        
-    
+        rec.setRecommandation(details); rec.setScore(score);
+        RecommandationIA saved = recommandationRepository.save(rec);
+        propositionRecommandationService.createProposition(saved.getUserId(), saved.getId(), 3);
+        envoyerNotificationSMS(saved);
+        return saved;
     }
-    
 
     @Override
     public RecommandationIA genererRecommandationSaisonniere(Long userId) {
-        RecommandationIA newRecommandation = initialiserNouvelleRecommandation(userId, "SAISONNIERE");
-        Optional<ComportementUtilisateur> comportementOpt = comportementService.getBehaviorByUserId(userId);
-
+        RecommandationIA rec = initialiser(userId, "SAISONNIERE");
+        Optional<ComportementUtilisateur> opt = comportementService.getBehaviorByUserId(userId);
         List<RecommandationDetail> details = new ArrayList<>();
         double score;
-
-        if (comportementOpt.isEmpty()) {
-            details.addAll(genererRecommandationsParDefautDetails());
-            score = 50.0;
+        if (opt.isEmpty()) {
+            details = defautDetails(); score = 50.0;
         } else {
-            ComportementUtilisateur comportement = comportementOpt.get();
-            if (comportement.getPreferencesSaisonnieres() != null) {
-                Saison saisonPreferee = comportement.getPreferencesSaisonnieres().getSaisonPreferee();
-                List<String> ingredients = obtenirIngredientsSaison(comportement.getPreferencesSaisonnieres(), saisonPreferee);
-
-                if (saisonPreferee != null) {
-                    // Limiter à 3 ingrédients pour la recommandation
-                    for (String ingredient : ingredients.stream().limit(3).collect(Collectors.toList())) {
-                        RecommandationDetail detail = new RecommandationDetail();
-                        detail.setTitre("Recettes avec " + ingredient);
-                        detail.setDescription("Découvrez nos meilleures recettes de " + saisonPreferee.name().toLowerCase() + " avec " + ingredient);
-                        detail.setLien("/recettes/ingredient/" + ingredient.toLowerCase());
-                        details.add(detail);
+            ComportementUtilisateur c = opt.get();
+            if (c.getPreferencesSaisonnieres() != null) {
+                Saison saison = c.getPreferencesSaisonnieres().getSaisonPreferee();
+                List<String> ings = obtenirIngredientsSaison(c.getPreferencesSaisonnieres(), saison);
+                if (saison != null) {
+                    for (String ing : ings.stream().limit(3).collect(Collectors.toList())) {
+                        RecommandationDetail d = new RecommandationDetail();
+                        d.setTitre("Recettes avec " + ing);
+                        d.setDescription("Nos meilleures recettes de " + saison.name().toLowerCase() + " avec " + ing);
+                        d.setLien("/recettes/ingredient/" + ing.toLowerCase());
+                        details.add(d);
                     }
                 }
-               
             }
-            score = calculerScoreRecommandation(comportement, details);
-
-            newRecommandation.setComportementUtilisateurId(comportement.getId());
-            if (comportement.getMetriques() != null && comportement.getMetriques().getScoreEngagement() != null) {
-                newRecommandation.setScoreEngagementReference(comportement.getMetriques().getScoreEngagement());
-            }
+            score = calculerScore(c, details);
+            rec.setComportementUtilisateurId(c.getId());
+            if (c.getMetriques() != null && c.getMetriques().getScoreEngagement() != null)
+                rec.setScoreEngagementReference(c.getMetriques().getScoreEngagement());
         }
-
-        newRecommandation.setRecommandation(details);
-        newRecommandation.setScore(score);
-
-        RecommandationIA savedRecommandation = recommandationRepository.save(newRecommandation);
-        propositionRecommandationService.createProposition(savedRecommandation.getUserId(), savedRecommandation.getId(), 3);
-        envoyerNotificationSMS(savedRecommandation); 
-        return savedRecommandation;
+        rec.setRecommandation(details); rec.setScore(score);
+        RecommandationIA saved = recommandationRepository.save(rec);
+        propositionRecommandationService.createProposition(saved.getUserId(), saved.getId(), 3);
+        envoyerNotificationSMS(saved);
+        return saved;
     }
-
 
     @Override
     public RecommandationIA genererRecommandationHabitudes(Long userId) {
-        RecommandationIA newRecommandation = initialiserNouvelleRecommandation(userId, "HABITUDES");
-        Optional<ComportementUtilisateur> comportementOpt = comportementService.getBehaviorByUserId(userId);
-
+        RecommandationIA rec = initialiser(userId, "HABITUDES");
+        Optional<ComportementUtilisateur> opt = comportementService.getBehaviorByUserId(userId);
         List<RecommandationDetail> details = new ArrayList<>();
         double score;
-
-        if (comportementOpt.isEmpty()) {
-            details.addAll(genererRecommandationsParDefautDetails());
-            score = 50.0;
+        if (opt.isEmpty()) {
+            details = defautDetails(); score = 50.0;
         } else {
-            ComportementUtilisateur comportement = comportementOpt.get();
-            if (comportement.getHabitudesNavigation() != null) {
-                String typePrefere = comportement.getHabitudesNavigation().getTypeRecettePreferee();
-                List<String> categoriesPreferees = comportement.getHabitudesNavigation().getCategoriesPreferees();
-
-                if (typePrefere != null && !typePrefere.isEmpty()) {
-                    RecommandationDetail detail = new RecommandationDetail();
-                    detail.setTitre("Nouvelles recettes " + typePrefere);
-                    detail.setDescription("Basé sur vos préférences pour les recettes " + typePrefere);
-                    detail.setLien("/recettes/type/" + typePrefere.toLowerCase());
-                    details.add(detail);
+            ComportementUtilisateur c = opt.get();
+            if (c.getHabitudesNavigation() != null) {
+                String type = c.getHabitudesNavigation().getTypeRecettePreferee();
+                if (type != null && !type.isEmpty()) {
+                    RecommandationDetail d = new RecommandationDetail();
+                    d.setTitre("Nouvelles recettes " + type);
+                    d.setDescription("Basé sur vos préférences pour les recettes " + type);
+                    d.setLien("/recettes/type/" + type.toLowerCase());
+                    details.add(d);
                 }
-
-                if (categoriesPreferees != null && !categoriesPreferees.isEmpty()) {
-                    for (String categorie : categoriesPreferees.stream().limit(2).collect(Collectors.toList())) {
-                        RecommandationDetail detail = new RecommandationDetail();
-                        detail.setTitre("Explorez " + categorie);
-                        detail.setDescription("Nouvelles découvertes dans la catégorie " + categorie);
-                        detail.setLien("/recettes/categorie/" + categorie.toLowerCase());
-                        details.add(detail);
+                List<String> cats = c.getHabitudesNavigation().getCategoriesPreferees();
+                if (cats != null) {
+                    for (String cat : cats.stream().limit(2).collect(Collectors.toList())) {
+                        RecommandationDetail d = new RecommandationDetail();
+                        d.setTitre("Explorez " + cat);
+                        d.setDescription("Nouvelles découvertes dans la catégorie " + cat);
+                        d.setLien("/recettes/categorie/" + cat.toLowerCase());
+                        details.add(d);
                     }
-                    newRecommandation.setCategoriesRecommandees(categoriesPreferees);
+                    rec.setCategoriesRecommandees(cats);
                 }
             }
-            score = calculerScoreRecommandation(comportement, details);
-
-            newRecommandation.setComportementUtilisateurId(comportement.getId());
-            if (comportement.getMetriques() != null && comportement.getMetriques().getScoreEngagement() != null) {
-                newRecommandation.setScoreEngagementReference(comportement.getMetriques().getScoreEngagement());
-            }
+            score = calculerScore(c, details);
+            rec.setComportementUtilisateurId(c.getId());
+            if (c.getMetriques() != null && c.getMetriques().getScoreEngagement() != null)
+                rec.setScoreEngagementReference(c.getMetriques().getScoreEngagement());
         }
-
-        newRecommandation.setRecommandation(details);
-        newRecommandation.setScore(score);
-
-        RecommandationIA savedRecommandation = recommandationRepository.save(newRecommandation);
-        propositionRecommandationService.createProposition(savedRecommandation.getUserId(), savedRecommandation.getId(), 3);
-        envoyerNotificationSMS(savedRecommandation); 
-        return savedRecommandation;
+        rec.setRecommandation(details); rec.setScore(score);
+        RecommandationIA saved = recommandationRepository.save(rec);
+        propositionRecommandationService.createProposition(saved.getUserId(), saved.getId(), 3);
+        envoyerNotificationSMS(saved);
+        return saved;
     }
-
 
     @Override
     public RecommandationIA genererRecommandationCreneauActuel(Long userId) {
-        RecommandationIA newRecommandation = initialiserNouvelleRecommandation(userId, "CRENEAU_ACTUEL");
-        Optional<ComportementUtilisateur> comportementOpt = comportementService.getBehaviorByUserId(userId);
-
+        RecommandationIA rec = initialiser(userId, "CRENEAU_ACTUEL");
+        Optional<ComportementUtilisateur> opt = comportementService.getBehaviorByUserId(userId);
         List<RecommandationDetail> details = new ArrayList<>();
         double score;
-
-        if (comportementOpt.isEmpty()) {
-            details.addAll(genererRecommandationsParDefautDetails());
-            score = 50.0;
+        if (opt.isEmpty()) {
+            details = defautDetails(); score = 50.0;
         } else {
-            ComportementUtilisateur comportement = comportementOpt.get();
-            String creneauActuel = comportement.getCreneauActuel(); 
-
-            if (comportement.getCyclesActivite() != null && creneauActuel != null && !creneauActuel.isEmpty()) {
-                ComportementUtilisateur.CreneauRepas creneau = obtenirCreneauRepas(comportement.getCyclesActivite(), creneauActuel);
-
-                if (creneau != null && creneau.getTypeRecettesPreferees() != null && !creneau.getTypeRecettesPreferees().isEmpty()) {
-                    for (String type : creneau.getTypeRecettesPreferees().stream().limit(2).collect(Collectors.toList())) {
-                        RecommandationDetail detail = new RecommandationDetail();
-                        detail.setTitre("Parfait pour votre " + creneauActuel);
-                        detail.setDescription("Recettes " + type + " adaptées à ce moment de la journée");
-                        detail.setLien("/recettes/" + creneauActuel.toLowerCase() + "/" + type.toLowerCase());
-                        details.add(detail);
+            ComportementUtilisateur c = opt.get();
+            String creneau = c.getCreneauActuel();
+            if (c.getCyclesActivite() != null && creneau != null && !creneau.isEmpty()) {
+                ComportementUtilisateur.CreneauRepas cr = obtenirCreneauRepas(c.getCyclesActivite(), creneau);
+                if (cr != null && cr.getTypeRecettesPreferees() != null) {
+                    for (String t : cr.getTypeRecettesPreferees().stream().limit(2).collect(Collectors.toList())) {
+                        RecommandationDetail d = new RecommandationDetail();
+                        d.setTitre("Parfait pour votre " + creneau);
+                        d.setDescription("Recettes " + t + " adaptées à ce moment");
+                        d.setLien("/recettes/" + creneau.toLowerCase() + "/" + t.toLowerCase());
+                        details.add(d);
                     }
-                    newRecommandation.setCategoriesRecommandees(creneau.getTypeRecettesPreferees());
+                    rec.setCategoriesRecommandees(cr.getTypeRecettesPreferees());
                 }
             }
-            score = calculerScoreRecommandation(comportement, details);
-
-            newRecommandation.setComportementUtilisateurId(comportement.getId());
-            newRecommandation.setCreneauCible(creneauActuel);
-            if (comportement.getMetriques() != null && comportement.getMetriques().getScoreEngagement() != null) {
-                newRecommandation.setScoreEngagementReference(comportement.getMetriques().getScoreEngagement());
-            }
+            score = calculerScore(c, details);
+            rec.setComportementUtilisateurId(c.getId());
+            rec.setCreneauCible(creneau);
+            if (c.getMetriques() != null && c.getMetriques().getScoreEngagement() != null)
+                rec.setScoreEngagementReference(c.getMetriques().getScoreEngagement());
         }
-
-        newRecommandation.setRecommandation(details);
-        newRecommandation.setScore(score);
-
-        RecommandationIA savedRecommandation = recommandationRepository.save(newRecommandation);
-        propositionRecommandationService.createProposition(savedRecommandation.getUserId(), savedRecommandation.getId(), 3);
-        envoyerNotificationSMS(savedRecommandation); 
-        return savedRecommandation;
+        rec.setRecommandation(details); rec.setScore(score);
+        RecommandationIA saved = recommandationRepository.save(rec);
+        propositionRecommandationService.createProposition(saved.getUserId(), saved.getId(), 3);
+        envoyerNotificationSMS(saved);
+        return saved;
     }
-
-
 
     @Override
     public RecommandationIA genererRecommandationEngagement(Long userId) {
-        RecommandationIA newRecommandation = initialiserNouvelleRecommandation(userId, "ENGAGEMENT");
-        Optional<ComportementUtilisateur> comportementOpt = comportementService.getBehaviorByUserId(userId);
-
+        RecommandationIA rec = initialiser(userId, "ENGAGEMENT");
+        Optional<ComportementUtilisateur> opt = comportementService.getBehaviorByUserId(userId);
         List<RecommandationDetail> details = new ArrayList<>();
         double score;
-
-        if (comportementOpt.isEmpty()) {
-            details.addAll(genererRecommandationsParDefautDetails());
-            score = 50.0;
+        if (opt.isEmpty()) {
+            details = defautDetails(); score = 50.0;
         } else {
-            ComportementUtilisateur comportement = comportementOpt.get();
-            Double scoreEngagement = (comportement.getMetriques() != null && comportement.getMetriques().getScoreEngagement() != null) ?
-                    comportement.getMetriques().getScoreEngagement() : 0.0;
-
-            if (scoreEngagement < 30) {
-                RecommandationDetail detailPopulaires = new RecommandationDetail();
-                detailPopulaires.setTitre("Découvrez nos recettes populaires");
-                detailPopulaires.setDescription("Les recettes les plus appréciées par notre communauté");
-                detailPopulaires.setLien("/recettes/populaires");
-                details.add(detailPopulaires);
-
-                RecommandationDetail detailRapides = new RecommandationDetail();
-                detailRapides.setTitre("Recettes rapides pour débutants");
-                detailRapides.setDescription("Des recettes simples et délicieuses en moins de 30 minutes");
-                detailRapides.setLien("/recettes/rapides");
-                details.add(detailRapides);
+            ComportementUtilisateur c = opt.get();
+            double se = (c.getMetriques() != null && c.getMetriques().getScoreEngagement() != null)
+                ? c.getMetriques().getScoreEngagement() : 0.0;
+            if (se < 30) {
+                RecommandationDetail d1 = new RecommandationDetail();
+                d1.setTitre("Découvrez nos recettes populaires");
+                d1.setDescription("Les recettes les plus appréciées par notre communauté");
+                d1.setLien("/recettes/populaires");
+                details.add(d1);
+                RecommandationDetail d2 = new RecommandationDetail();
+                d2.setTitre("Recettes rapides pour débutants");
+                d2.setDescription("Des recettes simples et délicieuses en moins de 30 minutes");
+                d2.setLien("/recettes/rapides");
+                details.add(d2);
             } else {
-                details.addAll(genererRecommandationsGeneriques(comportement));
+                details = generiquesDetails(c);
             }
-            score = calculerScoreRecommandation(comportement, details);
-
-            newRecommandation.setComportementUtilisateurId(comportement.getId());
-            newRecommandation.setScoreEngagementReference(scoreEngagement);
+            score = calculerScore(c, details);
+            rec.setComportementUtilisateurId(c.getId());
+            rec.setScoreEngagementReference(se);
         }
-
-        newRecommandation.setRecommandation(details);
-        newRecommandation.setScore(score);
-
-        RecommandationIA savedRecommandation = recommandationRepository.save(newRecommandation);
-        propositionRecommandationService.createProposition(savedRecommandation.getUserId(), savedRecommandation.getId(), 3);
-        envoyerNotificationSMS(savedRecommandation); 
-        return savedRecommandation;
+        rec.setRecommandation(details); rec.setScore(score);
+        RecommandationIA saved = recommandationRepository.save(rec);
+        propositionRecommandationService.createProposition(saved.getUserId(), saved.getId(), 3);
+        envoyerNotificationSMS(saved);
+        return saved;
     }
-    
-    /**
-     * ✅ NOUVELLE MÉTHODE : Génère une recommandation hybride avancée
-     * Combine filtrage collaboratif + contenu + contexte
-     */
+
+    @Override
     public RecommandationIA genererRecommandationHybride(Long userId) {
         return enhancedRecommendationService.genererRecommandationHybride(userId);
     }
-    
-    
-    
-    
+
     @Override
-    public RecommandationIA mettreAJourScoreRecommandation(String recommandationId, ComportementUtilisateur comportement) {
-        RecommandationIA recommandation = recommandationRepository.findById(recommandationId)
-                .orElseThrow(() -> new RuntimeException("Recommandation non trouvée avec l'ID: " + recommandationId));
-
-        double nouveauScore = calculerScoreRecommandation(comportement, recommandation.getRecommandation());
-        recommandation.setScore(nouveauScore);
-
-        return recommandationRepository.save(recommandation);
+    public RecommandationIA mettreAJourScoreRecommandation(String recommandationId,
+                                                            ComportementUtilisateur comportement) {
+        RecommandationIA rec = recommandationRepository.findById(recommandationId)
+                .orElseThrow(() -> new RuntimeException("Recommandation non trouvée : " + recommandationId));
+        rec.setScore(calculerScore(comportement, rec.getRecommandation()));
+        return recommandationRepository.save(rec);
     }
 
     @Override
     public List<RecommandationIA> getRecommandationsParProfil(Long userId) {
-        Optional<ComportementUtilisateur> comportementOpt = comportementService.getBehaviorByUserId(userId);
-
-        if (comportementOpt.isEmpty() || comportementOpt.get().getMetriques() == null || comportementOpt.get().getMetriques().getProfilUtilisateur() == null) {
+        Optional<ComportementUtilisateur> opt = comportementService.getBehaviorByUserId(userId);
+        if (opt.isEmpty() || opt.get().getMetriques() == null ||
+            opt.get().getMetriques().getProfilUtilisateur() == null)
             return getRecommandationsByUserId(userId);
-        }
-
-        String profil = comportementOpt.get().getMetriques().getProfilUtilisateur().name();
-        return getRecommandationsByUserIdAndType(userId, "PROFIL_" + profil.toUpperCase());
+        String profil = opt.get().getMetriques().getProfilUtilisateur().name();
+        return getRecommandationsByUserIdAndType(userId, "PROFIL_" + profil);
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  PRIVÉ
+    // ═══════════════════════════════════════════════════════════════════════════
 
-     //Méthodes utilitaires privées
-
-    /**
-     * Initialise une nouvelle instance de RecommandationIA avec les champs communs.
-     * @param userId L'ID de l'utilisateur.
-     * @param type Le type de la recommandation.
-     * @return Une nouvelle instance de RecommandationIA.
-     */
-    private RecommandationIA initialiserNouvelleRecommandation(Long userId, String type) {
-        RecommandationIA newRecommandation = new RecommandationIA();
-        newRecommandation.setUserId(userId);
-        newRecommandation.setType(type);
-        newRecommandation.setDateRecommandation(LocalDateTime.now());
-        newRecommandation.setEstUtilise(false);
-        return newRecommandation;
+    private RecommandationIA initialiser(Long userId, String type) {
+        RecommandationIA r = new RecommandationIA();
+        r.setUserId(userId); r.setType(type);
+        r.setDateRecommandation(LocalDateTime.now()); r.setEstUtilise(false);
+        return r;
     }
 
-    private List<RecommandationDetail> genererRecommandationsParDefautDetails() {
-        List<RecommandationDetail> details = new ArrayList<>();
-        RecommandationDetail detail = new RecommandationDetail();
-        detail.setTitre("Bienvenue ! Découvrez nos recettes");
-        detail.setDescription("Explorez notre collection de recettes délicieuses");
-        detail.setLien("/recettes/populaires");
-        details.add(detail);
-        return details;
+    private ProfilUtilisateur profil(ComportementUtilisateur c) {
+        return (c.getMetriques() != null && c.getMetriques().getProfilUtilisateur() != null)
+            ? c.getMetriques().getProfilUtilisateur() : ProfilUtilisateur.NOUVEAU;
     }
 
-    private List<RecommandationDetail> genererRecommandationsNouvelUtilisateur() {
-        List<RecommandationDetail> details = new ArrayList<>();
-        RecommandationDetail detail = new RecommandationDetail();
-        detail.setTitre("Guide pour bien commencer");
-        detail.setDescription("Découvrez comment utiliser au mieux notre plateforme");
-        detail.setLien("/guide/debutant");
-        details.add(detail);
-        return details;
+    private List<RecommandationDetail> defautDetails() {
+        RecommandationDetail d = new RecommandationDetail();
+        d.setTitre("Bienvenue ! Découvrez nos recettes");
+        d.setDescription("Explorez notre collection de recettes délicieuses");
+        d.setLien("/recettes/populaires");
+        return List.of(d);
     }
 
-    private List<RecommandationDetail> genererRecommandationsUtilisateurActif(ComportementUtilisateur comportement) {
-        List<RecommandationDetail> details = new ArrayList<>();
-        RecommandationDetail detail = new RecommandationDetail();
-        detail.setTitre("Nouvelles recettes pour vous");
-        detail.setDescription("Basé sur votre activité récente");
-        detail.setLien("/recettes/personnalisees");
-        details.add(detail);
-        return details;
+    private List<RecommandationDetail> nouveauDetails() {
+        RecommandationDetail d = new RecommandationDetail();
+        d.setTitre("Guide pour bien commencer");
+        d.setDescription("Découvrez comment utiliser au mieux notre plateforme");
+        d.setLien("/guide/debutant");
+        return List.of(d);
     }
 
-    private List<RecommandationDetail> genererRecommandationsUtilisateurFidele(ComportementUtilisateur comportement) {
-        List<RecommandationDetail> details = new ArrayList<>();
-        RecommandationDetail detail = new RecommandationDetail();
-        detail.setTitre("Recettes exclusives");
-        detail.setDescription("Contenu premium pour nos utilisateurs fidèles");
-        detail.setLien("/recettes/premium");
-        details.add(detail);
-        return details;
+    private List<RecommandationDetail> actifDetails(ComportementUtilisateur c) {
+        RecommandationDetail d = new RecommandationDetail();
+        d.setTitre("Nouvelles recettes pour vous");
+        d.setDescription("Basé sur votre activité récente");
+        d.setLien("/recettes/personnalisees");
+        return List.of(d);
     }
 
-    private List<RecommandationDetail> genererRecommandationsGeneriques(ComportementUtilisateur comportement) {
-        List<RecommandationDetail> details = new ArrayList<>();
-        RecommandationDetail detail = new RecommandationDetail();
-        detail.setTitre("Recettes du moment");
-        detail.setDescription("Découvrez les tendances actuelles");
-        detail.setLien("/recettes/tendances");
-        details.add(detail);
-        return details;
+    private List<RecommandationDetail> fideleDetails(ComportementUtilisateur c) {
+        RecommandationDetail d = new RecommandationDetail();
+        d.setTitre("Recettes exclusives");
+        d.setDescription("Contenu premium pour nos utilisateurs fidèles");
+        d.setLien("/recettes/premium");
+        return List.of(d);
     }
 
-    private List<String> obtenirIngredientsSaison(ComportementUtilisateur.PreferencesSaisonnieres prefs, Saison saison) {
-        if (prefs == null || saison == null) return new ArrayList<>();
-
-        switch (saison) {
-            case PRINTEMPS:
-                return prefs.getIngredientsPrintemps() != null ? prefs.getIngredientsPrintemps() : new ArrayList<>();
-            case ETE:
-                return prefs.getIngredientsEte() != null ? prefs.getIngredientsEte() : new ArrayList<>();
-            case AUTOMNE:
-                return prefs.getIngredientsAutomne() != null ? prefs.getIngredientsAutomne() : new ArrayList<>();
-            case HIVER:
-                return prefs.getIngredientsHiver() != null ? prefs.getIngredientsHiver() : new ArrayList<>();
-            default:
-                return new ArrayList<>();
-        }
+    private List<RecommandationDetail> generiquesDetails(ComportementUtilisateur c) {
+        RecommandationDetail d = new RecommandationDetail();
+        d.setTitre("Recettes du moment");
+        d.setDescription("Découvrez les tendances actuelles");
+        d.setLien("/recettes/tendances");
+        return List.of(d);
     }
 
-    private ComportementUtilisateur.CreneauRepas obtenirCreneauRepas(ComportementUtilisateur.CyclesActivite cycles, String creneau) {
-        if (cycles == null || creneau == null || creneau.isEmpty()) return null;
-
-        // Utilisation de toLowerCase() pour une comparaison insensible à la casse
-        switch (creneau.toLowerCase()) {
-            case "petit-dejeuner":
-                return cycles.getPetitDejeuner();
-            case "dejeuner":
-                return cycles.getDejeuner();
-            case "diner":
-                return cycles.getDiner();
-            default:
-                return null;
-        }
+    private List<String> obtenirIngredientsSaison(ComportementUtilisateur.PreferencesSaisonnieres p, Saison saison) {
+        if (p == null || saison == null) return new ArrayList<>();
+        return switch (saison) {
+            case PRINTEMPS -> p.getIngredientsPrintemps() != null ? p.getIngredientsPrintemps() : new ArrayList<>();
+            case ETE       -> p.getIngredientsEte()       != null ? p.getIngredientsEte()       : new ArrayList<>();
+            case AUTOMNE   -> p.getIngredientsAutomne()   != null ? p.getIngredientsAutomne()   : new ArrayList<>();
+            case HIVER     -> p.getIngredientsHiver()     != null ? p.getIngredientsHiver()     : new ArrayList<>();
+        };
     }
 
-    /**
-     * Envoie une notification SMS à l'utilisateur.
-     * @param recommendation La recommandation qui vient d'être générée.
-     */
-    private void envoyerNotificationSMS(RecommandationIA recommendation) {
-    	if (!smsEnabled) return;
-
-        String message = "Vous avez une nouvelle recommandation ! Consultez-la ici : https://tonsite.com/recommandations/" + recommendation.getId();
-        String numeroUtilisateur = recoverNumberUser(recommendation.getUserId()); 
-
-        System.out.println("Tentative d'envoi SMS à : " + numeroUtilisateur);
-
-        /*if (numeroUtilisateur != null && !numeroUtilisateur.isEmpty()) {
-            try {
-                smsService.sendSms(numeroUtilisateur, message);
-                System.out.println("SMS programmé avec succès");
-            } catch (Exception e) {
-                System.err.println("Erreur lors de l'envoi SMS : " + e.getMessage());
-            }
-        } else {
-            System.err.println("Numéro de téléphone non configuré pour l'utilisateur ID: " + recommendation.getUserId());
-        }*/
+    private ComportementUtilisateur.CreneauRepas obtenirCreneauRepas(
+            ComportementUtilisateur.CyclesActivite cycles, String creneau) {
+        if (cycles == null || creneau == null) return null;
+        return switch (creneau.toLowerCase()) {
+            case "petit-dejeuner" -> cycles.getPetitDejeuner();
+            case "dejeuner"       -> cycles.getDejeuner();
+            case "diner"          -> cycles.getDiner();
+            default               -> null;
+        };
     }
 
-    /**
-     * Calcule le score de la recommandation basé sur le comportement de l'utilisateur et les détails de la recommandation.
-     * @param comportement Le comportement de l'utilisateur.
-     * @param details Les détails de la recommandation.
-     * @return Le score calculé.
-     */
-    private double calculerScoreRecommandation(ComportementUtilisateur comportement, List<RecommandationDetail> details) {
-        double scoreBase = 50.0;
-
-        if (comportement != null && comportement.getMetriques() != null && comportement.getMetriques().getScoreEngagement() != null) {
-            scoreBase += comportement.getMetriques().getScoreEngagement() * 0.3;
-        }
-
-        scoreBase += details.size() * 5;
-
-        return Math.min(100.0, scoreBase); // Le score ne dépasse pas 100
+    private double calculerScore(ComportementUtilisateur c, List<RecommandationDetail> details) {
+        double base = 50.0;
+        if (c != null && c.getMetriques() != null && c.getMetriques().getScoreEngagement() != null)
+            base += c.getMetriques().getScoreEngagement() * 0.3;
+        base += details.size() * 5;
+        return Math.min(100.0, base);
     }
 
-    /**
-     * Cette méthode est un placeholder. En production, elle devrait récupérer le vrai numéro de téléphone
-     * de l'utilisateur depuis une base de données MySQL, par exemple.
-     * @param userId L'ID de l'utilisateur.
-     * @return Le numéro de téléphone de l'utilisateur ou le numéro par défaut/de test.
-     */
-    private String recoverNumberUser(Long userId) {
-    
-        return smsRecipient; 
+    private void envoyerNotificationSMS(RecommandationIA rec) {
+        if (!smsEnabled) return;
+        System.out.println("Tentative d'envoi SMS à : " + smsRecipient);
     }
 }
