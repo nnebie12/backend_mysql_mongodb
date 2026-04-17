@@ -11,7 +11,6 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import jakarta.transaction.Transactional; 
 
 import com.example.demo.DTO.CommentaireRequestDTO;
 import com.example.demo.DTO.CommentaireResponseDTO;
@@ -20,22 +19,21 @@ import com.example.demo.DTO.NoteResponseDTO;
 import com.example.demo.DTO.RecetteIngredientDTO;
 import com.example.demo.DTO.RecetteRequestDTO;
 import com.example.demo.DTO.RecetteResponseDTO;
-import com.example.demo.web.mapper.RecetteMapper;
-
 import com.example.demo.entiesMongodb.CommentaireDocument;
 import com.example.demo.entiesMongodb.NoteDocument;
 import com.example.demo.entiesMongodb.RecetteDetailsDocument;
-
 import com.example.demo.entitiesMysql.IngredientEntity;
 import com.example.demo.entitiesMysql.RecetteEntity;
 import com.example.demo.entitiesMysql.RecetteIngredientEntity;
 import com.example.demo.entitiesMysql.UserEntity;
-
 import com.example.demo.repositoryMongoDB.RecetteDetailsRepository;
 import com.example.demo.repositoryMysql.IngredientRepository;
 import com.example.demo.repositoryMysql.RecetteRepository;
 import com.example.demo.repositoryMysql.UserRepository;
 import com.example.demo.servicesMysql.RecetteService; 
+import com.example.demo.web.mapper.RecetteMapper;
+
+import jakarta.transaction.Transactional; 
 
 @Service
 	public class RecetteServiceImpl implements RecetteService {
