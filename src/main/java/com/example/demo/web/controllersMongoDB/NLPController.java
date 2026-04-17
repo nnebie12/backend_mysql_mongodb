@@ -11,6 +11,7 @@ import com.example.demo.entitiesMysql.RecetteEntity;
 import com.example.demo.repositoryMongoDB.CommentaireMongoRepository;
 import com.example.demo.repositoryMysql.RecetteRepository;
 import com.example.demo.servicesImplMongoDB.RecipeNLPService;
+import com.example.demo.web.mapper.RecetteMapper;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +37,9 @@ public class NLPController {
     
     @Autowired
     private RecetteRepository recetteRepo;
+
+    @Autowired
+    private RecetteMapper recetteMapper;
     
     @Autowired
     private CommentaireMongoRepository commentaireRepo;
@@ -69,7 +73,7 @@ public class NLPController {
             List<RecetteEntity> results = nlpService.semanticSearch(query, allRecipes, 10);
             
             List<RecetteResponseDTO> dtos = results.stream()
-                .map(this::toDTO)
+                .map(recetteMapper::toResponseDto)
                 .collect(Collectors.toList());
 
             return ResponseEntity.ok(Map.of(
@@ -131,7 +135,7 @@ public class NLPController {
                     double similarity = nlpService.calculateCosineSimilarity(targetRecipe, recipe);
                     
                     Map<String, Object> result = new HashMap<>();
-                    result.put("recipe", toDTO(recipe));
+                    result.put("recipe", recetteMapper.toResponseDto(recipe));
                     result.put("similarity_score", Math.round(similarity * 100) / 100.0);
                     
                     return result;
@@ -468,19 +472,4 @@ public class NLPController {
         }
     }
     
-    // Conversion vers DTO
-    private RecetteResponseDTO toDTO(RecetteEntity entity) {
-    	RecetteResponseDTO dto = new RecetteResponseDTO();
-        dto.setId(entity.getId());
-        dto.setTitre(entity.getTitre());
-        dto.setDescription(entity.getDescription());
-        dto.setTempsPreparation(entity.getTempsPreparation());
-        dto.setTempsCuisson(entity.getTempsCuisson());
-        dto.setDifficulte(entity.getDifficulte());
-        dto.setTypeRecette(entity.getTypeRecette());
-        dto.setCuisine(entity.getCuisine());
-        dto.setImageUrl(entity.getImageUrl());
-        dto.setVegetarien(entity.getVegetarien());
-        return dto;
-    }
 }

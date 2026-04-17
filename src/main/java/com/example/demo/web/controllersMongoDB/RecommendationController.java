@@ -13,6 +13,7 @@ import com.example.demo.repositoryMongoDB.NoteMongoRepository;
 import com.example.demo.repositoryMongoDB.RecetteInteractionRepository;
 import com.example.demo.repositoryMysql.RecetteRepository;
 import com.example.demo.servicesMongoDB.RecommandationIAService;
+import com.example.demo.web.mapper.RecetteMapper;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +41,9 @@ public class RecommendationController {
 
     @Autowired
     private RecetteRepository recetteRepo;
+
+    @Autowired
+    private RecetteMapper recetteMapper;
 
     @Autowired
     private NoteMongoRepository noteRepo;
@@ -164,7 +168,7 @@ public class RecommendationController {
             forYou.put("newest", allRecipes.stream()
                 .sorted((r1, r2) -> r2.getId().compareTo(r1.getId()))
                 .limit(5)
-                .map(this::toDTO)
+                .map(recetteMapper::toResponseDto)
                 .collect(Collectors.toList()));
             forYou.put("user_id", userId);
             forYou.put("generated_at", java.time.LocalDateTime.now());
@@ -200,7 +204,7 @@ public class RecommendationController {
             Collections.shuffle(unseenRecipes);
 
             List<RecetteResponseDTO> explore = unseenRecipes.stream()
-                    .limit(limit).map(this::toDTO).collect(Collectors.toList());
+                    .limit(limit).map(recetteMapper::toResponseDto).collect(Collectors.toList());
 
             return ResponseEntity.ok(Map.of(
                     "user_id", userId,
@@ -278,7 +282,7 @@ public class RecommendationController {
         if (validInteractions.isEmpty()) {
             return recetteRepo.findAll().stream()
                     .sorted(Comparator.comparing(RecetteEntity::getId).reversed())
-                    .limit(limit).map(this::toDTO).collect(Collectors.toList());
+                    .limit(limit).map(recetteMapper::toResponseDto).collect(Collectors.toList());
         }
 
         Map<Long, Long> recipeInteractionCount = validInteractions.stream()
@@ -289,25 +293,6 @@ public class RecommendationController {
                 .limit(limit).map(Map.Entry::getKey).collect(Collectors.toList());
 
         return recetteRepo.findAllById(popularRecipeIds).stream()
-                .map(this::toDTO).collect(Collectors.toList());
-    }
-
-    private RecetteResponseDTO toDTO(RecetteEntity entity) {
-        RecetteResponseDTO dto = new RecetteResponseDTO();
-        dto.setId(entity.getId());
-        dto.setTitre(entity.getTitre());
-        dto.setDescription(entity.getDescription());
-        dto.setTempsPreparation(entity.getTempsPreparation());
-        dto.setTempsCuisson(entity.getTempsCuisson());
-        dto.setDifficulte(entity.getDifficulte());
-        dto.setTypeRecette(entity.getTypeRecette());
-        dto.setCuisine(entity.getCuisine());
-        dto.setImageUrl(entity.getImageUrl());
-        dto.setVegetarien(entity.getVegetarien());
-        dto.setPopularite(entity.getPopularite());
-        dto.setCategorie(entity.getCategorie());
-        dto.setSaison(entity.getSaison());
-        dto.setTypeCuisine(entity.getTypeCuisine());
-        return dto;
+                .map(recetteMapper::toResponseDto).collect(Collectors.toList());
     }
 }

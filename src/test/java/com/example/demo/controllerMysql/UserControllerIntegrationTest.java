@@ -1,6 +1,7 @@
 package com.example.demo.controllerMysql;
 
 import com.example.demo.entitiesMysql.UserEntity;
+import com.example.demo.entitiesMysql.ennums.Role;
 import com.example.demo.exception.UserNotFoundException;
 import com.example.demo.servicesMysql.UserService;
 import com.example.demo.web.controllersMysql.UserController;
@@ -17,6 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -50,8 +52,10 @@ class UserControllerUnitTest {
                 .build();
         objectMapper = new ObjectMapper();
         
-        adminUser = new UserEntity(1L, "Admin", "User", "admin@test.com", "adminpass", null, "ADMINISTRATEUR", null);
-        normalUser = new UserEntity(2L, "Normal", "User", "user@test.com", "userpass", null, "USER", null);
+        adminUser = new UserEntity(1L, "Admin", "User", "admin@test.com", "adminpass", 
+            new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), null, false, Role.ADMINISTRATEUR, null);
+        normalUser = new UserEntity(2L, "Normal", "User", "user@test.com", "userpass", 
+            new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), null, false, Role.USER, null);
     }
 
     @Test
@@ -103,7 +107,8 @@ class UserControllerUnitTest {
     @DisplayName(" updateUser - Doit mettre à jour un utilisateur existant")
     void testUpdateUser_ShouldUpdateExistingUser() throws Exception {
         
-        UserEntity updatedUser = new UserEntity(1L, "User", "Updated", "updated@test.com", "updatedpass", null, "USER", null);
+        UserEntity updatedUser = new UserEntity(1L, "User", "Updated", "updated@test.com", "updatedpass", 
+            new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), null, false, Role.USER, null);
         
         when(userService.updateUserAsAdmin(eq(1L), any(UserEntity.class))).thenReturn(updatedUser);
         
@@ -123,7 +128,8 @@ class UserControllerUnitTest {
     @Test
     @DisplayName(" updateUser - Doit retourner 404 si utilisateur non trouvé")
     void testUpdateUser_ShouldReturn404WhenUserNotFound() throws Exception {
-        UserEntity updatedUser = new UserEntity(999L, "Updated", "User", "updated@test.com", "updatedpass", null, "USER", null);
+        UserEntity updatedUser = new UserEntity(999L, "Updated", "User", "updated@test.com", "updatedpass", 
+            new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), null, false, Role.USER, null);
         
         when(userService.updateUserAsAdmin(eq(999L), any(UserEntity.class)))
                 .thenThrow(new UserNotFoundException("User not found with id: 999"));
@@ -139,7 +145,8 @@ class UserControllerUnitTest {
     @Test
     @DisplayName(" updateUser - Doit retourner 409 en cas de conflit de données")
     void testUpdateUser_ShouldReturn409OnDataIntegrityViolation() throws Exception {
-        UserEntity updatedUser = new UserEntity(1L, "Updated", "User", "updated@test.com", "updatedpass", null, "USER", null);
+        UserEntity updatedUser = new UserEntity(1L, "Updated", "User", "updated@test.com", "updatedpass", 
+            new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), null, false, Role.USER, null);
         
         when(userService.updateUserAsAdmin(eq(1L), any(UserEntity.class)))
                 .thenThrow(new DataIntegrityViolationException("Duplicate email"));
@@ -155,7 +162,8 @@ class UserControllerUnitTest {
     @Test
     @DisplayName(" updateUser - Doit retourner 500 en cas d'erreur inattendue")
     void testUpdateUser_ShouldReturn500OnUnexpectedError() throws Exception {
-        UserEntity updatedUser = new UserEntity(1L, "Updated", "User", "updated@test.com", "updatedpass", null, "USER", null);
+        UserEntity updatedUser = new UserEntity(1L, "Updated", "User", "updated@test.com", "updatedpass", 
+            new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), null, false, Role.USER, null);
         
         when(userService.updateUserAsAdmin(eq(1L), any(UserEntity.class)))
                 .thenThrow(new RuntimeException("Unexpected error"));

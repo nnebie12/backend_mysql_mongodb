@@ -12,8 +12,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 
 import com.example.demo.entitiesMysql.UserEntity;
+import com.example.demo.entitiesMysql.ennums.Role;
 import com.example.demo.repositoryMysql.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
@@ -40,7 +43,7 @@ public class AuthControllerIntegrationTest {
         user.setPrenom("John");
         user.setEmail("john.doe@example.com");
         user.setMotDePasse("securePassword123");
-        user.setPreferenceAlimentaire("Végétarien");
+        user.setPreferenceAlimentaire(Arrays.asList("Végétarien"));
 
         mockMvc.perform(post("/api/v1/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -50,11 +53,13 @@ public class AuthControllerIntegrationTest {
 
     @Test
     public void testRegisterWithExistingEmail_conflict() throws Exception {
-        UserEntity existing = new UserEntity(null, "Test", "User", "duplicate@example.com", "pass", "Vegan", "USER", null);
+        UserEntity existing = new UserEntity(null, "Test", "User", "duplicate@example.com", "pass", 
+            Arrays.asList("Vegan"), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), null, false, Role.USER, null);
         existing = userRepository.save(existing); 
         userRepository.save(existing);
 
-        UserEntity newUser = new UserEntity(null, "New", "User", "duplicate@example.com", "pass", "Vegan", "USER", null);
+        UserEntity newUser = new UserEntity(null, "New", "User", "duplicate@example.com", "pass", 
+            Arrays.asList("Vegan"), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), null, false, Role.USER, null);
 
         mockMvc.perform(post("/api/v1/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)

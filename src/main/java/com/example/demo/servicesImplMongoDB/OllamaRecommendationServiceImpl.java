@@ -5,6 +5,7 @@ import com.example.demo.entiesMongodb.NoteDocument;
 import com.example.demo.entiesMongodb.RecetteInteraction;
 import com.example.demo.entitiesMysql.RecetteEntity;
 import com.example.demo.servicesMongoDB.OllamaService;
+import com.example.demo.web.mapper.RecetteMapper;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +26,9 @@ public class OllamaRecommendationServiceImpl {
 
     @Autowired
     private OllamaService ollamaService;
+
+    @Autowired
+    private RecetteMapper recetteMapper;
 
     public List<RecetteResponseDTO> getPersonalizedRecommendations(
             Long userId,
@@ -63,7 +67,7 @@ public class OllamaRecommendationServiceImpl {
             .limit(20).map(Map.Entry::getKey).collect(Collectors.toList());
 
         return rankWithOllama(top20, preferredTypes, preferredCuisines)
-            .stream().limit(10).map(this::toDTO).collect(Collectors.toList());
+            .stream().limit(10).map(recetteMapper::toResponseDto).collect(Collectors.toList());
     }
 
     public List<RecetteResponseDTO> findSimilarRecipes(RecetteEntity target,
@@ -72,7 +76,7 @@ public class OllamaRecommendationServiceImpl {
         return allRecipes.stream()
             .filter(r -> !r.getId().equals(target.getId()))
             .sorted(Comparator.comparingDouble(r -> -structuralSimilarity(target, r)))
-            .limit(10).map(this::toDTO).collect(Collectors.toList());
+            .limit(10).map(recetteMapper::toResponseDto).collect(Collectors.toList());
     }
 
     public Map<String, Object> detectTrends(List<RecetteInteraction> allInteractions) {
@@ -186,16 +190,5 @@ public class OllamaRecommendationServiceImpl {
             .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
             .limit(n).map(Map.Entry::getKey).collect(Collectors.toSet());
     }
-
-    private RecetteResponseDTO toDTO(RecetteEntity e) {
-        RecetteResponseDTO dto = new RecetteResponseDTO();
-        dto.setId(e.getId()); dto.setTitre(e.getTitre()); dto.setDescription(e.getDescription());
-        dto.setTempsPreparation(e.getTempsPreparation()); dto.setTempsCuisson(e.getTempsCuisson());
-        dto.setDifficulte(e.getDifficulte()); dto.setTypeRecette(e.getTypeRecette());
-        dto.setCuisine(e.getCuisine()); dto.setImageUrl(e.getImageUrl());
-        dto.setVegetarien(e.getVegetarien()); dto.setPopularite(e.getPopularite());
-        dto.setCategorie(e.getCategorie()); dto.setSaison(e.getSaison());
-        dto.setTypeCuisine(e.getTypeCuisine());
-        return dto;
-    }
 }
+

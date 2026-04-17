@@ -32,7 +32,7 @@
     	<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 	</properties>
 	<dependencies>
-		<!-- Supprimer les deux occurrences de cloudinary-http44 et mettre : -->
+		<!-- Cloudinary HTTP client dependency -->
 		<dependency>
 		    <groupId>com.cloudinary</groupId>
 		    <artifactId>cloudinary-http44</artifactId>

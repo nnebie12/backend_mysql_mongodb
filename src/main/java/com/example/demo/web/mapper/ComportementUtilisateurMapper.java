@@ -3,7 +3,6 @@ package com.example.demo.web.mapper;
 import com.example.demo.DTO.ComportementUtilisateurRequestDTO;
 import com.example.demo.DTO.ComportementUtilisateurResponseDTO;
 import com.example.demo.entiesMongodb.ComportementUtilisateur;
-import com.example.demo.entiesMongodb.HistoriqueRecherche;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;

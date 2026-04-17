@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional; 
 
@@ -19,6 +20,7 @@ import com.example.demo.DTO.NoteResponseDTO;
 import com.example.demo.DTO.RecetteIngredientDTO;
 import com.example.demo.DTO.RecetteRequestDTO;
 import com.example.demo.DTO.RecetteResponseDTO;
+import com.example.demo.web.mapper.RecetteMapper;
 
 import com.example.demo.entiesMongodb.CommentaireDocument;
 import com.example.demo.entiesMongodb.NoteDocument;
@@ -42,35 +44,20 @@ import com.example.demo.servicesMysql.RecetteService;
 	 private final UserRepository userRepository;
 	 private final RecetteDetailsRepository recetteDetailsRepository;
 	 private final IngredientRepository ingredientRepository;
+	 private final RecetteMapper recetteMapper;
 	
+	 @Autowired
 	 public RecetteServiceImpl(RecetteRepository recetteRepository,
 	                           UserRepository userRepository,
 	                           RecetteDetailsRepository recetteDetailsRepository,
-	                           IngredientRepository ingredientRepository) {
+	                           IngredientRepository ingredientRepository,
+	                           RecetteMapper recetteMapper) {
 	     this.recetteRepository = recetteRepository;
 	     this.userRepository = userRepository;
 	     this.recetteDetailsRepository = recetteDetailsRepository;
 	     this.ingredientRepository = ingredientRepository;
+	     this.recetteMapper = recetteMapper;
 	 }
-	 
-	 private void mapRequestDTOToEntity(RecetteRequestDTO dto, RecetteEntity entity) {
-	        entity.setTitre(dto.getTitre());
-	        entity.setDescription(dto.getDescription());
-	        entity.setTempsPreparation(dto.getTempsPreparation());
-	        entity.setTempsCuisson(dto.getTempsCuisson());
-	        entity.setDifficulte(dto.getDifficulte());
-
-	        // ✅ CORRECTION : propagation des nouveaux champs du DTO vers l'entité
-	        entity.setCuisine(dto.getCuisine());
-	        entity.setTypeRecette(dto.getTypeRecette());
-	        entity.setVegetarien(dto.getVegetarien());
-	        entity.setCategorie(dto.getCategorie());
-	        entity.setSaison(dto.getSaison());
-	        entity.setTypeCuisine(dto.getTypeCuisine());
-	        if (dto.getImageUrl() != null) {
-	            entity.setImageUrl(dto.getImageUrl());
-	        }
-	    }
 	
 	 @Override
 	    @Transactional
@@ -79,9 +66,9 @@ import com.example.demo.servicesMysql.RecetteService;
 	                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé avec l'ID: " + userEntityId));
 
 	        RecetteEntity recetteEntity = new RecetteEntity();
-	        mapRequestDTOToEntity(recetteDTO, recetteEntity); 
-	        recetteEntity.setUserEntity(userEntity);
-	        recetteEntity.setDateCreation(LocalDateTime.now());
+        recetteMapper.mapRequestDtoToEntity(recetteDTO, recetteEntity);
+        recetteEntity.setUserEntity(userEntity);
+        recetteEntity.setDateCreation(LocalDateTime.now());
 
 	        RecetteEntity savedRecette = recetteRepository.save(recetteEntity);
 
@@ -123,7 +110,7 @@ import com.example.demo.servicesMysql.RecetteService;
 	        RecetteEntity recetteEntity = recetteRepository.findById(id)
 	                .orElseThrow(() -> new RuntimeException("Recette non trouvée avec l'ID: " + id));
 
-	        mapRequestDTOToEntity(recetteDetailsDTO, recetteEntity); 
+	        recetteMapper.mapRequestDtoToEntity(recetteDetailsDTO, recetteEntity);
 
 	        return convertToRecetteResponseDTO(recetteRepository.save(recetteEntity));
 	    }
@@ -336,36 +323,13 @@ import com.example.demo.servicesMysql.RecetteService;
 	 }
 	
 	 private RecetteResponseDTO convertToRecetteResponseDTO(RecetteEntity recetteEntity) {
-	     RecetteResponseDTO dto = new RecetteResponseDTO();
-	     dto.setId(recetteEntity.getId());
-	     dto.setTitre(recetteEntity.getTitre());
-	     dto.setDescription(recetteEntity.getDescription());
-	     dto.setTempsPreparation(recetteEntity.getTempsPreparation());
-	     dto.setTempsCuisson(recetteEntity.getTempsCuisson());
-	     dto.setDifficulte(recetteEntity.getDifficulte());
-	     dto.setDateCreation(recetteEntity.getDateCreation());
-	     dto.setRecetteMongoId(recetteEntity.getRecetteMongoId());
-	     
-	     dto.setPopularite(recetteEntity.getPopularite());
-         dto.setCategorie(recetteEntity.getCategorie());
-         dto.setSaison(recetteEntity.getSaison());
-         dto.setTypeCuisine(recetteEntity.getTypeCuisine());
-	
-	     if (recetteEntity.getUserEntity() != null) {
-	         dto.setUserId(recetteEntity.getUserEntity().getId());
-	         dto.setUserName(recetteEntity.getUserEntity().getPrenom());
+	     RecetteResponseDTO dto = recetteMapper.toResponseDto(recetteEntity);
+	     if (dto == null) {
+	         return null;
 	     }
-	
-	     if (recetteEntity.getRecetteIngredients() != null && !recetteEntity.getRecetteIngredients().isEmpty()) {
-	         dto.setIngredients(recetteEntity.getRecetteIngredients().stream()
-	             .map(this::convertToRecetteIngredientDTO)
-	             .collect(Collectors.toList()));
-	     }
-	
+
 	     if (recetteEntity.getRecetteMongoId() != null) {
 	         recetteDetailsRepository.findById(recetteEntity.getRecetteMongoId()).ifPresent(details -> {
-	             
-	             dto.setMoyenneNotes(details.getMoyenneNotes());
 	             dto.setNombreCommentaires(details.getNombreCommentaires());
 	             dto.setNombreNotes(details.getNombreNotes());
 	         });
