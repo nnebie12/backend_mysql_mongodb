@@ -1,8 +1,7 @@
 package com.example.demo.config;
 
-import com.example.demo.security.CustomUserDetailsService;
-import com.example.demo.security.JwtAuthenticationFilter;
-import com.example.demo.security.JwtUtil;
+import java.util.Arrays;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
@@ -20,8 +19,9 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
-import java.util.List;
+import com.example.demo.security.CustomUserDetailsService;
+import com.example.demo.security.JwtAuthenticationFilter;
+import com.example.demo.security.JwtUtil;
 
 @Configuration
 @EnableWebSecurity
@@ -62,20 +62,20 @@ public class SecurityConfig {
                 
                 // Recettes - publics (lecture seule)
                 .requestMatchers("/api/v1/recettes/all").permitAll()
-                .requestMatchers("/api/v1/recettes/{id}").permitAll()
-                .requestMatchers("/api/v1/recettes/{recetteId}/details").permitAll()
-                .requestMatchers("/api/v1/recettes/{recetteId}/ingredients").permitAll()
-                .requestMatchers("/api/v1/recettes/{recetteId}/commentaires").permitAll()
-                .requestMatchers("/api/v1/recettes/{recetteId}/notes").permitAll()
-                .requestMatchers("/api/v1/recettes/{recetteId}/moyenne-notes").permitAll()
+                .requestMatchers("/api/v1/recettes/*").permitAll()
+                .requestMatchers("/api/v1/recettes/*/details").permitAll()
+                .requestMatchers("/api/v1/recettes/*/ingredients").permitAll()
+                .requestMatchers("/api/v1/recettes/*/commentaires").permitAll()
+                .requestMatchers("/api/v1/recettes/*/notes").permitAll()
+                .requestMatchers("/api/v1/recettes/*/moyenne-notes").permitAll()
                 
                 // Ingrédients - publics (lecture)
                 .requestMatchers("/api/v1/IngredientEntity/all").permitAll()
-                .requestMatchers("/api/v1/IngredientEntity/{id}").permitAll()
+                .requestMatchers("/api/v1/IngredientEntity/*").permitAll()
                 .requestMatchers("/api/v1/IngredientEntity/nom/{nom}").permitAll()
                 
                 // RecetteIngredient - publics (lecture)
-                .requestMatchers("/api/recetteIngredient/recette/{recetteId}").permitAll()
+                .requestMatchers("/api/recetteIngredient/recette/*").permitAll()
                 
                 // Recommandation - publics (lecture)
                 .requestMatchers("/api/v1/recommandations/**").permitAll()

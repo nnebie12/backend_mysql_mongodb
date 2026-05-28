@@ -2,7 +2,6 @@ package com.example.demo.entitiesMysql;
 
 import java.util.ArrayList;
 import java.util.List;
-import jakarta.persistence.*;
 
 import com.example.demo.entitiesMysql.ennums.Role;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -12,10 +11,13 @@ import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -28,6 +30,29 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserEntity {
+
+    public UserEntity(Long id, String nom, String prenom, String email, String motDePasse,
+                      List<String> preferenceAlimentaire, List<String> ingredientsApprecies,
+                      List<String> ingredientsEvites, List<String> contraintesAlimentaires,
+                      String niveauCuisine, Boolean newsletter, Role role, List<RecetteEntity> recettes) {
+        this.id = id;
+        this.nom = nom;
+        this.prenom = prenom;
+        this.email = email;
+        this.motDePasse = motDePasse;
+        this.password = motDePasse;
+        this.motDePasseLegacy = motDePasse;
+        this.preferenceAlimentaire = preferenceAlimentaire;
+        this.ingredientsApprecies = ingredientsApprecies;
+        this.ingredientsEvites = ingredientsEvites;
+        this.contraintesAlimentaires = contraintesAlimentaires;
+        this.niveauCuisine = niveauCuisine;
+        this.newsletter = newsletter;
+        this.actif = true;
+        this.active = true;
+        this.role = role;
+        this.recettes = recettes;
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -44,6 +69,12 @@ public class UserEntity {
 
     @Column(name = "mot_de_passe", nullable = false, length = 255)
     private String motDePasse;
+
+    @Column(name = "password", nullable = false, length = 255)
+    private String password;
+
+    @Column(name = "motdepasse", nullable = false, length = 255)
+    private String motDePasseLegacy;
 
     @ElementCollection
     @Column(name = "preference_alimentaire", length = 500)
@@ -69,6 +100,12 @@ public class UserEntity {
 
     @Column(name = "newsletter", nullable = false)
     private Boolean newsletter = false;
+
+    @Column(name = "actif", nullable = false)
+    private Boolean actif = true;
+
+    @Column(name = "active", nullable = false)
+    private Boolean active = true;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

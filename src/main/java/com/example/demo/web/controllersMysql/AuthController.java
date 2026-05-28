@@ -1,19 +1,25 @@
 package com.example.demo.web.controllersMysql;
 
-import com.example.demo.DTO.AuthRequest;
-import com.example.demo.DTO.AuthResponse;
-import com.example.demo.DTO.UpdateProfileRequest;
-import com.example.demo.DTO.UserResponse;
-import com.example.demo.servicesMysql.AuthService;
-import com.example.demo.servicesMysql.UserService;
-import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.example.demo.DTO.AuthRequest;
+import com.example.demo.DTO.AuthResponse;
+import com.example.demo.DTO.LoginRequest;
+import com.example.demo.DTO.UpdateProfileRequest;
+import com.example.demo.DTO.UserResponse;
+import com.example.demo.servicesMysql.AuthService;
+
+import jakarta.validation.Valid;
 
 
 @RestController
@@ -23,13 +29,13 @@ public class AuthController {
     private final AuthService authService;
     
 
-    public AuthController(AuthService authService, UserService userService, AuthenticationManager authenticationManager) {
+    public AuthController(AuthService authService) {
         this.authService = authService;
        
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> authenticate(@RequestBody AuthRequest authRequest) {
+    public ResponseEntity<?> authenticate(@RequestBody @Valid LoginRequest authRequest) {
         try {
             AuthResponse authResponse = authService.authenticate(authRequest);
             return ResponseEntity.ok(authResponse);

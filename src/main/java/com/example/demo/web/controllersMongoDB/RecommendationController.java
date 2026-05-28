@@ -7,12 +7,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,31 +39,40 @@ public class RecommendationController {
 
     private static final Logger logger = LoggerFactory.getLogger(RecommendationController.class);
 
-    @Autowired
-    private RecommandationIAService recommandationService;
+    private final RecommandationIAService recommandationService;
+    private final RecetteInteractionRepository interactionRepo;
+    private final RecetteRepository recetteRepo;
+    private final RecetteMapper recetteMapper;
+    private final NoteMongoRepository noteRepo;
 
-    @Autowired
-    private RecetteInteractionRepository interactionRepo;
+    public RecommendationController(RecommandationIAService recommandationService,
+                                    RecetteInteractionRepository interactionRepo,
+                                    RecetteRepository recetteRepo,
+                                    RecetteMapper recetteMapper,
+                                    NoteMongoRepository noteRepo) {
+        this.recommandationService = recommandationService;
+        this.interactionRepo = interactionRepo;
+        this.recetteRepo = recetteRepo;
+        this.recetteMapper = recetteMapper;
+        this.noteRepo = noteRepo;
+    }
 
-    @Autowired
-    private RecetteRepository recetteRepo;
-
-    @Autowired
-    private RecetteMapper recetteMapper;
-
-    @Autowired
-    private NoteMongoRepository noteRepo;
+    private <T> ResponseEntity<T> execute(Supplier<ResponseEntity<T>> action) {
+        try {
+            return action.get();
+        } catch (Exception e) {
+            logger.error("Recommendation operation failed: {}", e.getMessage(), e);
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 
     @GetMapping("/personalized/{userId}")
     public ResponseEntity<?> getPersonalizedRecommendations(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "10") int limit) {
-
         logger.info("Requête de recommandations personnalisées pour l'utilisateur {}", userId);
-
-        try {
+        return execute(() -> {
             List<RecetteInteraction> history = interactionRepo.findByIdUser(userId);
-
             if (history.isEmpty()) {
                 logger.info("Pas d'historique pour l'utilisateur {}, recommandations génériques", userId);
                 return ResponseEntity.ok(Map.of(
@@ -70,54 +80,33 @@ public class RecommendationController {
                     "recommendations", getPopularRecipes(limit)
                 ));
             }
-
             List<NoteDocument> userRatings = noteRepo.findByUserId(userId);
             List<RecetteEntity> allRecipes = recetteRepo.findAllWithUser();
-
             List<RecetteResponseDTO> recommendations =
-                recommandationService.getPersonalizedRecommendations(userId, history, allRecipes, userRatings);
-
-            recommendations = recommendations.stream()
-                .limit(limit)
-                .collect(Collectors.toList());
-
-            logger.info("Retour de {} recommandations pour l'utilisateur {}",
-                recommendations.size(), userId);
-
+                recommandationService.getPersonalizedRecommendations(userId, history, allRecipes, userRatings)
+                    .stream().limit(limit).collect(Collectors.toList());
+            logger.info("Retour de {} recommandations pour l'utilisateur {}", recommendations.size(), userId);
             return ResponseEntity.ok(Map.of(
                 "user_id", userId,
                 "total_recommendations", recommendations.size(),
                 "based_on_interactions", history.size(),
                 "recommendations", recommendations
             ));
-
-        } catch (Exception e) {
-            logger.error("Erreur lors de la génération des recommandations pour l'utilisateur {}", userId, e);
-            return ResponseEntity.status(500).body(Map.of(
-                "error", "Erreur lors de la génération des recommandations",
-                "message", e.getMessage()
-            ));
-        }
+        });
     }
 
     @GetMapping("/similar/{recipeId}")
     public ResponseEntity<?> getSimilarRecipes(
             @PathVariable Long recipeId,
             @RequestParam(defaultValue = "10") int limit) {
-
         logger.info("Recherche de recettes similaires à la recette {}", recipeId);
-
-        try {
+        return execute(() -> {
             RecetteEntity recipe = recetteRepo.findById(recipeId)
                 .orElseThrow(() -> new RuntimeException("Recette non trouvée"));
-
             List<RecetteEntity> allRecipes = recetteRepo.findAllWithUser();
-
-            List<RecetteResponseDTO> similar = recommandationService.findSimilarRecipes(recipe, allRecipes);
-            similar = similar.stream().limit(limit).collect(Collectors.toList());
-
+            List<RecetteResponseDTO> similar = recommandationService.findSimilarRecipes(recipe, allRecipes)
+                .stream().limit(limit).collect(Collectors.toList());
             logger.info("Trouvé {} recettes similaires à '{}'", similar.size(), recipe.getTitre());
-
             return ResponseEntity.ok(Map.of(
                 "reference_recipe", Map.of(
                     "id", recipe.getId(),
@@ -127,48 +116,32 @@ public class RecommendationController {
                 "total_similar", similar.size(),
                 "similar_recipes", similar
             ));
-
-        } catch (Exception e) {
-            logger.error("Erreur lors de la recherche de recettes similaires", e);
-            return ResponseEntity.status(500).body(Map.of(
-                "error", "Erreur lors de la recherche de recettes similaires",
-                "message", e.getMessage()
-            ));
-        }
+        });
     }
 
     @GetMapping("/trends")
     public ResponseEntity<?> getTrends() {
         logger.info("Requête d'analyse des tendances");
-        try {
+        return execute(() -> {
             List<RecetteInteraction> allInteractions = interactionRepo.findAll();
             Map<String, Object> trends = recommandationService.detectTrends(allInteractions);
             return ResponseEntity.ok(trends);
-        } catch (Exception e) {
-            logger.warn("Erreur tendances, fallback basique : {}", e.getMessage());
-            return ResponseEntity.ok(Map.of(
-                "trending_categories", List.of("Général"),
-                "message", "Tendances basiques (IA indisponible)"
-            ));
-        }
+        });
     }
 
     @GetMapping("/for-you/{userId}")
     public ResponseEntity<?> getForYouRecommendations(@PathVariable Long userId) {
         logger.info("Génération de recommandations 'Pour vous' pour l'utilisateur {}", userId);
-        try {
+        return execute(() -> {
             List<RecetteInteraction> history = interactionRepo.findByIdUser(userId);
             List<RecetteEntity> allRecipes = recetteRepo.findAllWithUser();
             List<NoteDocument> userRatings = noteRepo.findByUserId(userId);
-
             Map<String, Object> forYou = new HashMap<>();
-
             if (!history.isEmpty()) {
                 List<RecetteResponseDTO> personalized =
                     recommandationService.getPersonalizedRecommendations(userId, history, allRecipes, userRatings);
                 forYou.put("personalized", personalized.stream().limit(5).collect(Collectors.toList()));
             }
-
             forYou.put("popular", getPopularRecipes(5));
             forYou.put("newest", allRecipes.stream()
                 .sorted((r1, r2) -> r2.getId().compareTo(r1.getId()))
@@ -177,102 +150,69 @@ public class RecommendationController {
                 .collect(Collectors.toList()));
             forYou.put("user_id", userId);
             forYou.put("generated_at", java.time.LocalDateTime.now());
-
             return ResponseEntity.ok(forYou);
-
-        } catch (Exception e) {
-            logger.error("Erreur lors de la génération 'Pour vous'", e);
-            return ResponseEntity.status(500).body(Map.of(
-                "error", "Erreur lors de la génération des recommandations",
-                "message", e.getMessage()
-            ));
-        }
+        });
     }
 
     @GetMapping("/explore/{userId}")
     public ResponseEntity<?> getExploreRecommendations(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "20") int limit) {
-
-        try {
+        return execute(() -> {
             List<RecetteInteraction> history = interactionRepo.findByIdUser(userId);
-
             Set<Long> viewedIds = history.stream()
-                    .map(RecetteInteraction::getIdRecette)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toSet());
-
+                .map(RecetteInteraction::getIdRecette)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
             List<RecetteEntity> unseenRecipes = recetteRepo.findAll().stream()
-                    .filter(r -> !viewedIds.contains(r.getId()))
-                    .collect(Collectors.toList());
-
+                .filter(r -> !viewedIds.contains(r.getId()))
+                .collect(Collectors.toList());
             Collections.shuffle(unseenRecipes);
-
             List<RecetteResponseDTO> explore = unseenRecipes.stream()
-                    .limit(limit).map(recetteMapper::toResponseDto).collect(Collectors.toList());
-
+                .limit(limit).map(recetteMapper::toResponseDto).collect(Collectors.toList());
             return ResponseEntity.ok(Map.of(
-                    "user_id", userId,
-                    "total_unseen", unseenRecipes.size(),
-                    "recipes", explore));
-
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
-        }
+                "user_id", userId,
+                "total_unseen", unseenRecipes.size(),
+                "recipes", explore));
+        });
     }
 
     @PostMapping("/feedback")
     public ResponseEntity<?> recordRecommendationFeedback(
             @RequestBody Map<String, Object> feedbackData) {
-        try {
+        return execute(() -> {
             Long userId   = Long.parseLong(feedbackData.get("userId").toString());
             Long recipeId = Long.parseLong(feedbackData.get("recipeId").toString());
             String action = feedbackData.get("action").toString();
             logger.info("Feedback reçu: User {} - Recipe {} - Action {}", userId, recipeId, action);
             return ResponseEntity.ok(Map.of("status", "success", "message", "Feedback enregistré"));
-        } catch (Exception e) {
-            logger.error("Erreur lors de l'enregistrement du feedback", e);
-            return ResponseEntity.status(500).body(Map.of(
-                "error", "Erreur lors de l'enregistrement du feedback"
-            ));
-        }
+        });
     }
 
     @GetMapping("/stats/{userId}")
     public ResponseEntity<?> getRecommendationStats(@PathVariable Long userId) {
-        try {
+        return execute(() -> {
             List<RecetteInteraction> history = interactionRepo.findByIdUser(userId);
-
             List<Long> recetteIds = history.stream()
-                    .map(RecetteInteraction::getIdRecette)
-                    .filter(Objects::nonNull)
-                    .distinct()
-                    .collect(Collectors.toList());
-
+                .map(RecetteInteraction::getIdRecette)
+                .filter(Objects::nonNull).distinct().collect(Collectors.toList());
             List<RecetteEntity> recettes = recetteRepo.findAllById(recetteIds);
-
             Map<String, Long> typeCount = recettes.stream()
-                    .filter(r -> r.getTypeRecette() != null)
-                    .collect(Collectors.groupingBy(RecetteEntity::getTypeRecette, Collectors.counting()));
-
+                .filter(r -> r.getTypeRecette() != null)
+                .collect(Collectors.groupingBy(RecetteEntity::getTypeRecette, Collectors.counting()));
             Map<String, Long> cuisineCount = recettes.stream()
-                    .filter(r -> r.getCuisine() != null)
-                    .collect(Collectors.groupingBy(RecetteEntity::getCuisine, Collectors.counting()));
-
+                .filter(r -> r.getCuisine() != null)
+                .collect(Collectors.groupingBy(RecetteEntity::getCuisine, Collectors.counting()));
             Map<String, Long> difficultyCount = recettes.stream()
-                    .filter(r -> r.getDifficulte() != null)
-                    .collect(Collectors.groupingBy(RecetteEntity::getDifficulte, Collectors.counting()));
-
+                .filter(r -> r.getDifficulte() != null)
+                .collect(Collectors.groupingBy(RecetteEntity::getDifficulte, Collectors.counting()));
             return ResponseEntity.ok(Map.of(
-                    "user_id", userId,
-                    "total_interactions", history.size(),
-                    "favorite_types", typeCount,
-                    "favorite_cuisines", cuisineCount,
-                    "difficulty_preference", difficultyCount));
-
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", "Erreur calcul statistiques"));
-        }
+                "user_id", userId,
+                "total_interactions", history.size(),
+                "favorite_types", typeCount,
+                "favorite_cuisines", cuisineCount,
+                "difficulty_preference", difficultyCount));
+        });
     }
 
     // ── Utilitaires ──────────────────────────────────────────────────────────

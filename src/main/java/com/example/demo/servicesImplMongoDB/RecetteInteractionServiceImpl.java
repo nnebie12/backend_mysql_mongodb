@@ -138,7 +138,7 @@ public class RecetteInteractionServiceImpl implements RecetteInteractionService 
     }
     
     @Override
-    @PreAuthorize("hasRole('ADMININISTRATEUR')")
+    @PreAuthorize("hasRole('ADMINISTRATEUR')")
     public void supprimerInteraction(String id) {
         repository.deleteById(id);
     }
