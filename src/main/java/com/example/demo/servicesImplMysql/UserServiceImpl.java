@@ -7,10 +7,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.example.demo.entitiesMysql.UserEntity;
+import com.example.demo.exception.UserNotFoundException;
 import com.example.demo.repositoryMysql.UserRepository;
 import com.example.demo.servicesMysql.UserService;
-import com.example.demo.exception.UserNotFoundException;
-import java.nio.charset.StandardCharsets;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -77,7 +76,10 @@ public class UserServiceImpl implements UserService {
             existingUser.setEmail(userDetails.getEmail());
         }
         if (userDetails.getMotDePasse() != null && !userDetails.getMotDePasse().isEmpty() && !userDetails.getMotDePasse().startsWith("$2a$")) {
-            existingUser.setMotDePasse(passwordEncoder.encode(userDetails.getMotDePasse()));
+            String encoded = passwordEncoder.encode(userDetails.getMotDePasse());
+            existingUser.setMotDePasse(encoded);
+            existingUser.setPassword(encoded);
+            existingUser.setMotDePasseLegacy(encoded);
         }
         if (userDetails.getRole() != null) {
             existingUser.setRole(userDetails.getRole());

@@ -1,22 +1,31 @@
 package com.example.demo.web.controllersMysql;
 
-import com.example.demo.entitiesMysql.UserEntity;
-import com.example.demo.servicesMysql.RecetteService;
-import com.example.demo.servicesMysql.UserService;
-
-import com.example.demo.entiesMongodb.ComportementUtilisateur;
-import com.example.demo.entiesMongodb.RecommandationIA;
-import com.example.demo.entiesMongodb.enums.ProfilUtilisateur; 
-import com.example.demo.servicesMongoDB.ComportementUtilisateurService;
-import com.example.demo.servicesMongoDB.RecommandationIAService;
-import com.example.demo.DTO.AnalysePatternsDTO;
-
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.example.demo.DTO.AnalysePatternsDTO;
+import com.example.demo.entiesMongodb.ComportementUtilisateur;
+import com.example.demo.entiesMongodb.RecommandationIA;
+import com.example.demo.entiesMongodb.enums.ProfilUtilisateur;
+import com.example.demo.entitiesMysql.UserEntity;
+import com.example.demo.servicesMongoDB.ComportementUtilisateurService;
+import com.example.demo.servicesMongoDB.RecommandationIAService;
+import com.example.demo.servicesMysql.RecetteService;
+import com.example.demo.servicesMysql.UserService;
 
 @RestController
 @RequestMapping("/api/administrateur")
@@ -41,6 +50,14 @@ public class AdminController {
 
     // --- Gestion des Utilisateurs (MySQL) ---
 
+    private <T> ResponseEntity<T> execute(Supplier<ResponseEntity<T>> action) {
+        try {
+            return action.get();
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     @GetMapping("/users")
     public ResponseEntity<List<UserEntity>> getAllUtilisateurs() {
         return ResponseEntity.ok(userService.getAllUsers());
@@ -48,34 +65,28 @@ public class AdminController {
 
     @PutMapping("/users/{id}")
     public ResponseEntity<UserEntity> updateUtilisateur(@PathVariable Long id, @RequestBody UserEntity updatedUser) {
-        try {
+        return execute(() -> {
             UserEntity user = userService.updateUserAsAdmin(id, updatedUser);
             return ResponseEntity.ok(user);
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
+        });
     }
 
     @DeleteMapping("/users/{id}")
     public ResponseEntity<Void> deleteUtilisateur(@PathVariable Long id) {
-        try {
+        return execute(() -> {
             userService.deleteUser(id);
             return ResponseEntity.noContent().build();
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
-        }
+        });
     }
 
     // --- Gestion des Recettes (MySQL) ---
 
     @DeleteMapping("/recettes/{id}")
     public ResponseEntity<Void> deleteRecette(@PathVariable Long id) {
-        try {
+        return execute(() -> {
             recetteService.deleteRecette(id);
             return ResponseEntity.noContent().build();
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
-        }
+        });
     }
 
     // --- Gestion du Comportement Utilisateur (MongoDB) - Fonctions Admin ---
@@ -85,12 +96,10 @@ public class AdminController {
      */
     @DeleteMapping("/comportements/users/{userId}")
     public ResponseEntity<Void> deleteUserComportement(@PathVariable Long userId) {
-        try {
+        return execute(() -> {
             comportementUtilisateurService.deleteUserBehavior(userId);
             return ResponseEntity.noContent().build();
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        });
     }
 
     /**
@@ -122,12 +131,7 @@ public class AdminController {
      */
     @PostMapping("/comportements/analyser/{userId}")
     public ResponseEntity<ComportementUtilisateur> triggerComportementAnalysis(@PathVariable Long userId) {
-        try {
-            ComportementUtilisateur updatedComportement = comportementUtilisateurService.analyserPatterns(userId);
-            return ResponseEntity.ok(updatedComportement);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        return execute(() -> ResponseEntity.ok(comportementUtilisateurService.analyserPatterns(userId)));
     }
 
     /**
@@ -156,13 +160,7 @@ public class AdminController {
     
     @GetMapping("/recommandations/user/{userId}")
     public ResponseEntity<List<RecommandationIA>> getRecommandationsForUser(@PathVariable Long userId) {
-        try {
-            // On réutilise le service MongoDB déjà injecté ou à injecter
-            List<RecommandationIA> recommandations = recommandationIAService.getRecommandationsByUserId(userId);
-            return ResponseEntity.ok(recommandations);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        return execute(() -> ResponseEntity.ok(recommandationIAService.getRecommandationsByUserId(userId)));
     }
     
     @GetMapping("/recommandations/all")

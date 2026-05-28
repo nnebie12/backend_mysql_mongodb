@@ -4,11 +4,19 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.entiesMongodb.RecetteInteraction;
 import com.example.demo.servicesMongoDB.RecetteInteractionService;
@@ -17,120 +25,111 @@ import com.example.demo.servicesMongoDB.RecetteInteractionService;
 @RequestMapping("/api/v1/recette-interactions")
 public class RecetteInteractionController {
     
-    @Autowired
-    private RecetteInteractionService service;
-    
-    @GetMapping
-    public ResponseEntity<List<RecetteInteraction>> getAllInteractions() {
+    private final RecetteInteractionService service;
+
+    public RecetteInteractionController(RecetteInteractionService service) {
+        this.service = service;
+    }
+
+    private <T> ResponseEntity<T> execute(Supplier<ResponseEntity<T>> action) {
         try {
-            List<RecetteInteraction> interactions = service.findAll();
-            return new ResponseEntity<>(interactions, HttpStatus.OK);
+            return action.get();
         } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+    
+    @GetMapping
+    public ResponseEntity<List<RecetteInteraction>> getAllInteractions() {
+        return execute(() -> {
+            List<RecetteInteraction> interactions = service.findAll();
+            return new ResponseEntity<>(interactions, HttpStatus.OK);
+        });
     }
     
     @GetMapping("/{id}")
     public ResponseEntity<RecetteInteraction> getInteractionById(@PathVariable String id) {
-        try {
+        return execute(() -> {
             Optional<RecetteInteraction> interaction = service.findById(id);
             return interaction.map(i -> new ResponseEntity<>(i, HttpStatus.OK))
                              .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @GetMapping("/user/{idUser}")
     public ResponseEntity<List<RecetteInteraction>> getInteractionsByUtilisateur(@PathVariable Long idUser) {
-        try {
+        return execute(() -> {
             List<RecetteInteraction> interactions = service.findByIdUser(idUser);
             return new ResponseEntity<>(interactions, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @GetMapping("/recette/{idRecette}")
     public ResponseEntity<List<RecetteInteraction>> getInteractionsByRecette(@PathVariable Long idRecette) {
-        try {
+        return execute(() -> {
             List<RecetteInteraction> interactions = service.findByIdRecette(idRecette);
             return new ResponseEntity<>(interactions, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @GetMapping("/type/{typeInteraction}")
     public ResponseEntity<List<RecetteInteraction>> getInteractionsByType(@PathVariable String typeInteraction) {
-        try {
+        return execute(() -> {
             List<RecetteInteraction> interactions = service.findByTypeInteraction(typeInteraction);
             return new ResponseEntity<>(interactions, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @GetMapping("/session/{sessionId}")
     public ResponseEntity<List<RecetteInteraction>> getInteractionsBySession(@PathVariable String sessionId) {
-        try {
+        return execute(() -> {
             List<RecetteInteraction> interactions = service.findParSessionId(sessionId);
             return new ResponseEntity<>(interactions, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @GetMapping("/user/{idUser}/recette/{idRecette}")
     public ResponseEntity<List<RecetteInteraction>> getInteractionsByUserAndRecette(
             @PathVariable Long idUser, 
             @PathVariable Long idRecette) {
-        try {
+        return execute(() -> {
             List<RecetteInteraction> interactions = service.findByIdUserAndIdRecette(idUser, idRecette);
             return new ResponseEntity<>(interactions, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @GetMapping("/device/{deviceType}")
     public ResponseEntity<List<RecetteInteraction>> getInteractionsByDevice(
             @PathVariable String deviceType,
             @RequestParam(required = false) String depuis) {
-        try {
+        return execute(() -> {
             LocalDateTime depuisDate = depuis != null ? LocalDateTime.parse(depuis) : LocalDateTime.now().minusDays(30);
             List<RecetteInteraction> interactions = service.findParDeviceType(deviceType, depuisDate);
             return new ResponseEntity<>(interactions, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @GetMapping("/periode")
     public ResponseEntity<List<RecetteInteraction>> getInteractionsByPeriode(
             @RequestParam String debut,
             @RequestParam String fin) {
-        try {
+        return execute(() -> {
             LocalDateTime dateDebut = LocalDateTime.parse(debut);
             LocalDateTime dateFin = LocalDateTime.parse(fin);
             List<RecetteInteraction> interactions = service.findInteractionsParPeriode(dateDebut, dateFin);
             return new ResponseEntity<>(interactions, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @GetMapping("/user/{idUser}/recentes")
     public ResponseEntity<List<RecetteInteraction>> getInteractionsRecentesUtilisateur(
             @PathVariable Long idUser,
             @RequestParam(required = false) String depuis) {
-        try {
+        return execute(() -> {
             LocalDateTime depuisDate = depuis != null ? LocalDateTime.parse(depuis) : LocalDateTime.now().minusDays(7);
             List<RecetteInteraction> interactions = service.findInteractionsRecentesUser(idUser, depuisDate);
             return new ResponseEntity<>(interactions, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @GetMapping("/populaires")
@@ -138,33 +137,27 @@ public class RecetteInteractionController {
             @RequestParam String typeInteraction,
             @RequestParam(required = false) String depuis,
             @RequestParam(defaultValue = "10") int limit) {
-        try {
+        return execute(() -> {
             LocalDateTime depuisDate = depuis != null ? LocalDateTime.parse(depuis) : LocalDateTime.now().minusDays(30);
             List<RecetteInteraction> interactions = service.findInteractionsPopulaires(typeInteraction, depuisDate, limit);
             return new ResponseEntity<>(interactions, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @GetMapping("/user/{idUser}/non-comptabilisees")
     public ResponseEntity<List<RecetteInteraction>> getInteractionsNonComptabilisees(@PathVariable Long idUser) {
-        try {
+        return execute(() -> {
             List<RecetteInteraction> interactions = service.findInteractionsNonComptabilisees(idUser);
             return new ResponseEntity<>(interactions, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @PostMapping
     public ResponseEntity<RecetteInteraction> createInteraction(@RequestBody RecetteInteraction interaction) {
-        try {
+        return execute(() -> {
             RecetteInteraction savedInteraction = service.save(interaction);
             return new ResponseEntity<>(savedInteraction, HttpStatus.CREATED);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @PostMapping("/registrer")
@@ -173,12 +166,10 @@ public class RecetteInteractionController {
             @RequestParam Long idRecette,
             @RequestParam String typeInteraction,
             @RequestParam String sessionId) {
-        try {
+        return execute(() -> {
             RecetteInteraction interaction = service.enregistrerInteraction(idUser, idRecette, typeInteraction, sessionId);
             return new ResponseEntity<>(interaction, HttpStatus.CREATED);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @PostMapping("/registrer-complete")
@@ -191,114 +182,92 @@ public class RecetteInteractionController {
             @RequestParam String sessionId,
             @RequestParam(required = false) String sourceInteraction,
             @RequestBody(required = false) Map<String, Object> metadonnees) {
-        try {
+        return execute(() -> {
             RecetteInteraction interaction = service.enregistrerInteractionComplete(
             		idUser, idRecette, typeInteraction, duree, deviceType, sessionId, sourceInteraction, metadonnees);
             return new ResponseEntity<>(interaction, HttpStatus.CREATED);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @PutMapping("/{id}/comptabiliser")
     public ResponseEntity<RecetteInteraction> marquerComptabilisee(@PathVariable String id) {
-        try {
+        return execute(() -> {
             RecetteInteraction interaction = service.marquerComptabilisee(id);
             return new ResponseEntity<>(interaction, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteInteraction(@PathVariable String id) {
-        try {
+        return execute(() -> {
             service.supprimerInteraction(id);
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @GetMapping("/statistiques/recette/{idRecette}/consultations")
     public ResponseEntity<Long> getConsultationsRecette(@PathVariable Long idRecette) {
-        try {
+        return execute(() -> {
             Long count = service.compterConsultationsRecette(idRecette);
             return new ResponseEntity<>(count, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @GetMapping("/statistiques/user/{idUser}/count")
     public ResponseEntity<Long> getInteractionsCountUtilisateur(
             @PathVariable Long idUser,
             @RequestParam(required = false) String depuis) {
-        try {
+        return execute(() -> {
             LocalDateTime depuisDate = depuis != null ? LocalDateTime.parse(depuis) : LocalDateTime.now().minusDays(30);
             Long count = service.compterInteractionsUser(idUser, depuisDate);
             return new ResponseEntity<>(count, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @GetMapping("/statistiques/recette/{idRecette}/types")
     public ResponseEntity<Map<String, Long>> getStatistiquesParType(@PathVariable Long idRecette) {
-        try {
+        return execute(() -> {
             Map<String, Long> stats = service.getStatistiquesParTypeInteraction(idRecette);
             return new ResponseEntity<>(stats, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @GetMapping("/statistiques/devices")
     public ResponseEntity<Map<String, Long>> getStatistiquesParDevice(
             @RequestParam(required = false) String depuis) {
-        try {
+        return execute(() -> {
             LocalDateTime depuisDate = depuis != null ? LocalDateTime.parse(depuis) : LocalDateTime.now().minusDays(30);
             Map<String, Long> stats = service.getStatistiquesParDevice(depuisDate);
             return new ResponseEntity<>(stats, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @GetMapping("/statistiques/recette/{idRecette}/duree-moyenne")
     public ResponseEntity<Double> getDureeMoyenneInteraction(
             @PathVariable Long idRecette,
             @RequestParam String typeInteraction) {
-        try {
+        return execute(() -> {
             Double duree = service.calculerDureeMoyenneInteraction(idRecette, typeInteraction);
             return new ResponseEntity<>(duree, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @GetMapping("/statistiques/top-recettes")
     public ResponseEntity<List<RecetteInteraction>> getTopRecettes(
             @RequestParam(required = false) String depuis,
             @RequestParam(defaultValue = "10") int limit) {
-        try {
+        return execute(() -> {
             LocalDateTime depuisDate = depuis != null ? LocalDateTime.parse(depuis) : LocalDateTime.now().minusDays(30);
             List<RecetteInteraction> topRecettes = service.getTopRecettesParInteractions(depuisDate, limit);
             return new ResponseEntity<>(topRecettes, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
     
     @GetMapping("/statistiques/recette/{idRecette}/details")
     public ResponseEntity<List<RecetteInteraction>> getStatistiquesRecette(@PathVariable Long idRecette) {
-        try {
+        return execute(() -> {
             List<RecetteInteraction> stats = service.getStatistiquesInteractionsRecette(idRecette);
             return new ResponseEntity<>(stats, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        });
     }
 }
