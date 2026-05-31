@@ -1,14 +1,20 @@
 package com.example.demo.servicesMysql;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
 import com.twilio.Twilio;
 import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.type.PhoneNumber;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
+
 import jakarta.annotation.PostConstruct;
 
 @Service
 public class SmsService {
+
+    private static final Logger logger = LoggerFactory.getLogger(SmsService.class);
     
     @Value("${twilio.account_sid}")
     private String accountSid;
@@ -32,9 +38,9 @@ public class SmsService {
                 body
             ).create();
             
-            System.out.println("SMS envoyé avec succès. SID: " + message.getSid());
+            logger.info("SMS envoyé avec succès. SID: {}", message.getSid());
         } catch (Exception e) {
-            System.err.println("Erreur lors de l'envoi SMS : " + e.getMessage());
+            logger.error("Erreur lors de l'envoi SMS : {}", e.getMessage(), e);
             throw e;
         }
     }

@@ -46,8 +46,6 @@ public class AuthService {
         userEntity.setEmail(request.getEmail());
         String encodedPassword = passwordEncoder.encode(request.getMotDePasse());
         userEntity.setMotDePasse(encodedPassword);
-        userEntity.setPassword(encodedPassword);
-        userEntity.setMotDePasseLegacy(encodedPassword);
         userEntity.setPreferenceAlimentaire(request.getPreferenceAlimentaire());
         userEntity.setIngredientsApprecies(request.getIngredientsApprecies());
         userEntity.setIngredientsEvites(request.getIngredientsEvites());
@@ -56,7 +54,6 @@ public class AuthService {
         userEntity.setNiveauCuisine(request.getNiveauCuisine());
         userEntity.setNewsletter(request.getNewsletter());
         userEntity.setActif(true);
-        userEntity.setActive(true);
         userEntity.setRole(Role.USER);
 
         UserEntity savedUser = userRepository.save(userEntity);

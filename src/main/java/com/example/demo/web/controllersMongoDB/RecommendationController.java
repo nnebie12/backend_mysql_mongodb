@@ -31,6 +31,7 @@ import com.example.demo.repositoryMongoDB.NoteMongoRepository;
 import com.example.demo.repositoryMongoDB.RecetteInteractionRepository;
 import com.example.demo.repositoryMysql.RecetteRepository;
 import com.example.demo.servicesMongoDB.RecommandationIAService;
+import com.example.demo.servicesMongoDB.RecetteInteractionService;
 import com.example.demo.web.mapper.RecetteMapper;
 
 @RestController
@@ -44,17 +45,20 @@ public class RecommendationController {
     private final RecetteRepository recetteRepo;
     private final RecetteMapper recetteMapper;
     private final NoteMongoRepository noteRepo;
+    private final RecetteInteractionService recetteInteractionService;
 
     public RecommendationController(RecommandationIAService recommandationService,
                                     RecetteInteractionRepository interactionRepo,
                                     RecetteRepository recetteRepo,
                                     RecetteMapper recetteMapper,
-                                    NoteMongoRepository noteRepo) {
+                                    NoteMongoRepository noteRepo,
+                                    RecetteInteractionService recetteInteractionService) {
         this.recommandationService = recommandationService;
         this.interactionRepo = interactionRepo;
         this.recetteRepo = recetteRepo;
         this.recetteMapper = recetteMapper;
         this.noteRepo = noteRepo;
+        this.recetteInteractionService = recetteInteractionService;
     }
 
     private <T> ResponseEntity<T> execute(Supplier<ResponseEntity<T>> action) {
@@ -93,6 +97,15 @@ public class RecommendationController {
                 "recommendations", recommendations
             ));
         });
+    }
+
+    // Alias POST pour la compatibilité avec le frontend aiRecommendationService.js
+    // qui appelle POST /ai/recommendations/personalized/{userId}
+    @PostMapping("/personalized/{userId}")
+    public ResponseEntity<?> getPersonalizedRecommendationsPost(
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "10") int limit) {
+        return getPersonalizedRecommendations(userId, limit);
     }
 
     @GetMapping("/similar/{recipeId}")
@@ -181,10 +194,17 @@ public class RecommendationController {
     public ResponseEntity<?> recordRecommendationFeedback(
             @RequestBody Map<String, Object> feedbackData) {
         return execute(() -> {
-            Long userId   = Long.parseLong(feedbackData.get("userId").toString());
-            Long recipeId = Long.parseLong(feedbackData.get("recipeId").toString());
+            Long userId   = Long.valueOf(feedbackData.get("userId").toString());
+            Long recipeId = Long.valueOf(feedbackData.get("recipeId").toString());
             String action = feedbackData.get("action").toString();
-            logger.info("Feedback reçu: User {} - Recipe {} - Action {}", userId, recipeId, action);
+            RecetteInteraction interaction = new RecetteInteraction();
+            interaction.setIdUser(userId);
+            interaction.setIdRecette(recipeId);
+            interaction.setTypeInteraction(action.toUpperCase());
+            interaction.setDateInteraction(java.time.LocalDateTime.now());
+            interaction.setSourceInteraction("RECOMMENDATION");
+            recetteInteractionService.save(interaction);
+            logger.info("Feedback persisté : User {} - Recipe {} - Action {}", userId, recipeId, action);
             return ResponseEntity.ok(Map.of("status", "success", "message", "Feedback enregistré"));
         });
     }

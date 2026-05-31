@@ -40,8 +40,6 @@ public class UserEntity {
         this.prenom = prenom;
         this.email = email;
         this.motDePasse = motDePasse;
-        this.password = motDePasse;
-        this.motDePasseLegacy = motDePasse;
         this.preferenceAlimentaire = preferenceAlimentaire;
         this.ingredientsApprecies = ingredientsApprecies;
         this.ingredientsEvites = ingredientsEvites;
@@ -49,7 +47,6 @@ public class UserEntity {
         this.niveauCuisine = niveauCuisine;
         this.newsletter = newsletter;
         this.actif = true;
-        this.active = true;
         this.role = role;
         this.recettes = recettes;
     }
@@ -67,14 +64,13 @@ public class UserEntity {
     @Column(name = "email", nullable = false, unique = true, length = 255)
     private String email;
 
+    // Colonne canonique pour le hash du mot de passe.
+    // Les colonnes DB "password" et "motdepasse" sont des artefacts legacy ;
+    // exécuter la migration : ALTER TABLE users MODIFY COLUMN password VARCHAR(255) NULL;
+    //                         ALTER TABLE users MODIFY COLUMN motdepasse VARCHAR(255) NULL;
+    // puis les supprimer une fois le déploiement stabilisé.
     @Column(name = "mot_de_passe", nullable = false, length = 255)
     private String motDePasse;
-
-    @Column(name = "password", nullable = false, length = 255)
-    private String password;
-
-    @Column(name = "motdepasse", nullable = false, length = 255)
-    private String motDePasseLegacy;
 
     @ElementCollection
     @Column(name = "preference_alimentaire", length = 500)
@@ -103,9 +99,6 @@ public class UserEntity {
 
     @Column(name = "actif", nullable = false)
     private Boolean actif = true;
-
-    @Column(name = "active", nullable = false)
-    private Boolean active = true;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

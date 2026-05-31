@@ -2,9 +2,9 @@ package com.example.demo.entiesMongodb;
 
 import java.util.List;
 
+import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import jakarta.persistence.Id;
 import lombok.Data;
 
 @Data

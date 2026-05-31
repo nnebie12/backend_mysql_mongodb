@@ -22,14 +22,6 @@ public class UserServiceImpl implements UserService {
         this.passwordEncoder = passwordEncoder;
     }
     
-    private String bytesToHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%02X", b));
-        }
-        return sb.toString();
-    }
-
     @Override
     public UserEntity saveUser(UserEntity userEntity) {
         return userRepository.save(userEntity);
@@ -78,8 +70,6 @@ public class UserServiceImpl implements UserService {
         if (userDetails.getMotDePasse() != null && !userDetails.getMotDePasse().isEmpty() && !userDetails.getMotDePasse().startsWith("$2a$")) {
             String encoded = passwordEncoder.encode(userDetails.getMotDePasse());
             existingUser.setMotDePasse(encoded);
-            existingUser.setPassword(encoded);
-            existingUser.setMotDePasseLegacy(encoded);
         }
         if (userDetails.getRole() != null) {
             existingUser.setRole(userDetails.getRole());
