@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.demo.DTO.NLPUserInsightsDTO;
 import com.example.demo.DTO.RecetteResponseDTO;
 import com.example.demo.entiesMongodb.CommentaireDocument;
 import com.example.demo.entitiesMysql.RecetteEntity;
@@ -57,6 +58,34 @@ public class NLPController {
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────
+    //  ✅ CORRIGÉ : appelle vraiment nlpService.getUserNLPInsights()
+    // ─────────────────────────────────────────────────────────────────
+
+    /**
+     * Analyse NLP complète d'un utilisateur :
+     * sentiment, mots-clés, topics, profil sémantique.
+     *
+     * AVANT (bugué) :
+     *   insights.put("cacheSize", nlpService.getCacheSize()); // ← ne faisait rien d'utile
+     *
+     * APRÈS (corrigé) :
+     *   Appel réel à getUserNLPInsights() qui analyse les commentaires
+     *   et l'historique de recherche de l'utilisateur.
+     */
+    @GetMapping("/users/{userId}/insights")
+    public ResponseEntity<?> getUserNLPInsights(@PathVariable Long userId) {
+        logger.info("Génération des insights NLP pour l'utilisateur {}", userId);
+        return execute(() -> {
+            NLPUserInsightsDTO insights = nlpService.getUserNLPInsights(userId);
+            return ResponseEntity.ok(insights);
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    //  Recherche sémantique
+    // ─────────────────────────────────────────────────────────────────
+
     @PostMapping("/search/semantic")
     public ResponseEntity<?> semanticSearch(@RequestBody Map<String, String> request) {
         String query = request.get("query");
@@ -65,62 +94,28 @@ public class NLPController {
         }
         return execute(() -> {
             List<RecetteEntity> allRecipes = recetteRepo.findAll();
-            logger.info("Nombre de recettes récupérées pour NLP : {}", allRecipes.size());
             if (allRecipes.isEmpty()) {
                 return ResponseEntity.ok(Map.of(
-                    "query", query,
-                    "total_results", 0,
-                    "message", "La base de données MySQL est vide. Importez le CSV d'abord."
+                        "query", query,
+                        "total_results", 0,
+                        "message", "La base de données MySQL est vide."
                 ));
             }
             List<RecetteEntity> results = nlpService.semanticSearch(query, allRecipes, 10);
             List<RecetteResponseDTO> dtos = results.stream()
-                .map(recetteMapper::toResponseDto)
-                .collect(Collectors.toList());
+                    .map(recetteMapper::toResponseDto)
+                    .collect(Collectors.toList());
             return ResponseEntity.ok(Map.of(
-                "query", query,
-                "total_results", dtos.size(),
-                "results", dtos
+                    "query", query,
+                    "total_results", dtos.size(),
+                    "results", dtos
             ));
         });
     }
 
-    @GetMapping("/users/{userId}/insights")
-    public ResponseEntity<?> getUserNLPInsights(@PathVariable Long userId) {
-        return execute(() -> {
-            Map<String, Object> insights = new HashMap<>();
-            insights.put("userId", userId);
-            insights.put("cacheSize", nlpService.getCacheSize());
-            return ResponseEntity.ok(insights);
-        });
-    }
-
-    @GetMapping("/similar/{recipeId}")
-    public ResponseEntity<?> findSimilarByEmbeddings(
-            @PathVariable Long recipeId,
-            @RequestParam(defaultValue = "10") int limit) {
-        logger.info("Recherche recettes similaires (NLP) à la recette {}", recipeId);
-        return execute(() -> {
-            RecetteEntity targetRecipe = recetteRepo.findById(recipeId)
-                .orElseThrow(() -> new RuntimeException("Recette non trouvée"));
-            List<RecetteEntity> allRecipes = recetteRepo.findAll();
-            List<RecetteEntity> similar = nlpService.findMostSimilarRecipes(targetRecipe, allRecipes, limit);
-            List<Map<String, Object>> resultsWithScores = similar.stream()
-                .map(recipe -> {
-                    double similarity = nlpService.calculateCosineSimilarity(targetRecipe, recipe);
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("recipe", recetteMapper.toResponseDto(recipe));
-                    result.put("similarity_score", Math.round(similarity * 100) / 100.0);
-                    return result;
-                })
-                .collect(Collectors.toList());
-            return ResponseEntity.ok(Map.of(
-                "reference_recipe", Map.of("id", targetRecipe.getId(), "titre", targetRecipe.getTitre()),
-                "total_similar", resultsWithScores.size(),
-                "similar_recipes", resultsWithScores
-            ));
-        });
-    }
+    // ─────────────────────────────────────────────────────────────────
+    //  Sentiment
+    // ─────────────────────────────────────────────────────────────────
 
     @PostMapping("/sentiment")
     public ResponseEntity<?> analyzeSentiment(@RequestBody Map<String, String> request) {
@@ -128,101 +123,126 @@ public class NLPController {
         if (text == null || text.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Le texte ne peut pas être vide"));
         }
-        logger.info("Analyse de sentiment");
         return execute(() -> {
-            double sentimentScore = nlpService.analyzeSentiment(text);
-            String sentiment;
-            if (sentimentScore > 0.5)       sentiment = "Très positif";
-            else if (sentimentScore > 0.2)  sentiment = "Positif";
-            else if (sentimentScore > -0.2) sentiment = "Neutre";
-            else if (sentimentScore > -0.5) sentiment = "Négatif";
-            else                            sentiment = "Très négatif";
+            double score = nlpService.analyzeSentiment(text);
+            String label;
+            if (score > 0.5)       label = "Très positif";
+            else if (score > 0.2)  label = "Positif";
+            else if (score > -0.2) label = "Neutre";
+            else if (score > -0.5) label = "Négatif";
+            else                   label = "Très négatif";
             return ResponseEntity.ok(Map.of(
-                "text", text,
-                "sentiment_score", Math.round(sentimentScore * 100) / 100.0,
-                "sentiment_label", sentiment
+                    "text", text,
+                    "sentiment_score", Math.round(score * 100) / 100.0,
+                    "sentiment_label", label
             ));
         });
     }
 
     @GetMapping("/sentiment/recipe/{recipeId}")
     public ResponseEntity<?> getRecipeSentiment(@PathVariable Long recipeId) {
-        logger.info("Calcul sentiment pour recette {}", recipeId);
         return execute(() -> {
             RecetteEntity recipe = recetteRepo.findById(recipeId)
-                .orElseThrow(() -> new RuntimeException("Recette non trouvée"));
+                    .orElseThrow(() -> new RuntimeException("Recette non trouvée"));
             List<CommentaireDocument> commentaires = commentaireRepo.findByRecetteId(recipeId);
             if (commentaires.isEmpty()) {
                 return ResponseEntity.ok(Map.of(
-                    "recipe_id", recipeId,
-                    "recipe_titre", recipe.getTitre(),
-                    "total_comments", 0,
-                    "average_sentiment", 0.0,
-                    "sentiment_label", "Aucun commentaire"
+                        "recipe_id", recipeId,
+                        "recipe_titre", recipe.getTitre(),
+                        "total_comments", 0,
+                        "average_sentiment", 0.0,
+                        "sentiment_label", "Aucun commentaire"
                 ));
             }
-            double avgSentiment = nlpService.calculateAverageSentiment(commentaires);
-            String sentimentLabel;
-            if (avgSentiment > 0.5)       sentimentLabel = "Très apprécié";
-            else if (avgSentiment > 0.2)  sentimentLabel = "Apprécié";
-            else if (avgSentiment > -0.2) sentimentLabel = "Mitigé";
-            else                          sentimentLabel = "Peu apprécié";
+            double avg = nlpService.calculateAverageSentiment(commentaires);
+            String label = avg > 0.5 ? "Très apprécié"
+                    : avg > 0.2 ? "Apprécié"
+                    : avg > -0.2 ? "Mitigé"
+                    : "Peu apprécié";
             return ResponseEntity.ok(Map.of(
-                "recipe_id", recipeId,
-                "recipe_titre", recipe.getTitre(),
-                "total_comments", commentaires.size(),
-                "average_sentiment", Math.round(avgSentiment * 100) / 100.0,
-                "sentiment_label", sentimentLabel
+                    "recipe_id", recipeId,
+                    "recipe_titre", recipe.getTitre(),
+                    "total_comments", commentaires.size(),
+                    "average_sentiment", Math.round(avg * 100) / 100.0,
+                    "sentiment_label", label
             ));
         });
     }
 
+    // ─────────────────────────────────────────────────────────────────
+    //  Mots-clés & catégories
+    // ─────────────────────────────────────────────────────────────────
+
     @GetMapping("/keywords/{recipeId}")
     public ResponseEntity<?> extractKeywords(@PathVariable Long recipeId) {
-        logger.info("Extraction mots-clés pour recette {}", recipeId);
         return execute(() -> {
             RecetteEntity recipe = recetteRepo.findById(recipeId)
-                .orElseThrow(() -> new RuntimeException("Recette non trouvée"));
+                    .orElseThrow(() -> new RuntimeException("Recette non trouvée"));
             List<String> keywords = nlpService.extractKeywords(recipe);
             return ResponseEntity.ok(Map.of(
-                "recipe_id", recipeId,
-                "recipe_titre", recipe.getTitre(),
-                "keywords", keywords
+                    "recipe_id", recipeId,
+                    "recipe_titre", recipe.getTitre(),
+                    "keywords", keywords
             ));
         });
     }
 
     @GetMapping("/auto-categorize/{recipeId}")
     public ResponseEntity<?> autoCategorize(@PathVariable Long recipeId) {
-        logger.info("Auto-catégorisation pour recette {}", recipeId);
         return execute(() -> {
             RecetteEntity recipe = recetteRepo.findById(recipeId)
-                .orElseThrow(() -> new RuntimeException("Recette non trouvée"));
+                    .orElseThrow(() -> new RuntimeException("Recette non trouvée"));
             List<String> categories = nlpService.autoDetectCategories(recipe);
             return ResponseEntity.ok(Map.of(
-                "recipe_id", recipeId,
-                "recipe_titre", recipe.getTitre(),
-                "suggested_categories", categories
+                    "recipe_id", recipeId,
+                    "recipe_titre", recipe.getTitre(),
+                    "suggested_categories", categories
             ));
         });
     }
 
     @PostMapping("/batch-categorize")
-    public ResponseEntity<?> batchAutoCategorize(@RequestParam(defaultValue = "100") int limit) {
-        logger.info("Catégorisation en masse de {} recettes", limit);
+    public ResponseEntity<?> batchAutoCategorize(
+            @RequestParam(defaultValue = "100") int limit) {
         return execute(() -> {
             List<RecetteEntity> recipes = recetteRepo.findAll().stream()
-                .limit(limit)
-                .collect(Collectors.toList());
-            int processed = 0;
+                    .limit(limit)
+                    .collect(Collectors.toList());
             for (RecetteEntity recipe : recipes) {
-                List<String> categories = nlpService.autoDetectCategories(recipe);
-                logger.info("Recette {}: {}", recipe.getTitre(), categories);
-                processed++;
+                List<String> cats = nlpService.autoDetectCategories(recipe);
+                logger.info("Recette '{}' : {}", recipe.getTitre(), cats);
             }
             return ResponseEntity.ok(Map.of(
-                "total_processed", processed,
-                "message", "Catégorisation terminée"
+                    "total_processed", recipes.size(),
+                    "message", "Catégorisation terminée"
+            ));
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    //  Similarité
+    // ─────────────────────────────────────────────────────────────────
+
+    @GetMapping("/similar/{recipeId}")
+    public ResponseEntity<?> findSimilarByEmbeddings(
+            @PathVariable Long recipeId,
+            @RequestParam(defaultValue = "10") int limit) {
+        return execute(() -> {
+            RecetteEntity target = recetteRepo.findById(recipeId)
+                    .orElseThrow(() -> new RuntimeException("Recette non trouvée"));
+            List<RecetteEntity> all = recetteRepo.findAll();
+            List<RecetteEntity> similar = nlpService.findMostSimilarRecipes(target, all, limit);
+            List<Map<String, Object>> withScores = similar.stream().map(r -> {
+                double sim = nlpService.calculateCosineSimilarity(target, r);
+                Map<String, Object> res = new HashMap<>();
+                res.put("recipe", recetteMapper.toResponseDto(r));
+                res.put("similarity_score", Math.round(sim * 100) / 100.0);
+                return res;
+            }).collect(Collectors.toList());
+            return ResponseEntity.ok(Map.of(
+                    "reference_recipe", Map.of("id", target.getId(), "titre", target.getTitre()),
+                    "total_similar", withScores.size(),
+                    "similar_recipes", withScores
             ));
         });
     }
@@ -231,38 +251,36 @@ public class NLPController {
     public ResponseEntity<?> calculateSimilarity(
             @PathVariable Long recipeId1,
             @PathVariable Long recipeId2) {
-        logger.info("Calcul similarité entre recettes {} et {}", recipeId1, recipeId2);
         return execute(() -> {
-            RecetteEntity recipe1 = recetteRepo.findById(recipeId1)
-                .orElseThrow(() -> new RuntimeException("Recette 1 non trouvée"));
-            RecetteEntity recipe2 = recetteRepo.findById(recipeId2)
-                .orElseThrow(() -> new RuntimeException("Recette 2 non trouvée"));
-            double similarity = nlpService.calculateCosineSimilarity(recipe1, recipe2);
-            String similarityLevel;
-            if (similarity > 0.8)      similarityLevel = "Très similaire";
-            else if (similarity > 0.6) similarityLevel = "Similaire";
-            else if (similarity > 0.4) similarityLevel = "Modérément similaire";
-            else if (similarity > 0.2) similarityLevel = "Peu similaire";
-            else                       similarityLevel = "Très différent";
+            RecetteEntity r1 = recetteRepo.findById(recipeId1)
+                    .orElseThrow(() -> new RuntimeException("Recette 1 non trouvée"));
+            RecetteEntity r2 = recetteRepo.findById(recipeId2)
+                    .orElseThrow(() -> new RuntimeException("Recette 2 non trouvée"));
+            double similarity = nlpService.calculateCosineSimilarity(r1, r2);
+            String level = similarity > 0.8 ? "Très similaire"
+                    : similarity > 0.6 ? "Similaire"
+                    : similarity > 0.4 ? "Modérément similaire"
+                    : similarity > 0.2 ? "Peu similaire"
+                    : "Très différent";
             return ResponseEntity.ok(Map.of(
-                "recipe1", Map.of("id", recipe1.getId(), "titre", recipe1.getTitre()),
-                "recipe2", Map.of("id", recipe2.getId(), "titre", recipe2.getTitre()),
-                "similarity_score", Math.round(similarity * 100) / 100.0,
-                "similarity_level", similarityLevel
+                    "recipe1", Map.of("id", r1.getId(), "titre", r1.getTitre()),
+                    "recipe2", Map.of("id", r2.getId(), "titre", r2.getTitre()),
+                    "similarity_score", Math.round(similarity * 100) / 100.0,
+                    "similarity_level", level
             ));
         });
     }
 
+    // ─────────────────────────────────────────────────────────────────
+    //  Cache & Stats
+    // ─────────────────────────────────────────────────────────────────
+
     @DeleteMapping("/cache")
     public ResponseEntity<?> clearCache() {
-        logger.info("Nettoyage du cache NLP");
         return execute(() -> {
-            int cacheSize = nlpService.getCacheSize();
+            int size = nlpService.getCacheSize();
             nlpService.clearEmbeddingsCache();
-            return ResponseEntity.ok(Map.of(
-                "message", "Cache nettoyé",
-                "embeddings_cleared", cacheSize
-            ));
+            return ResponseEntity.ok(Map.of("message", "Cache nettoyé", "embeddings_cleared", size));
         });
     }
 
@@ -271,18 +289,19 @@ public class NLPController {
         return execute(() -> {
             int cacheSize = nlpService.getCacheSize();
             int totalRecipes = (int) recetteRepo.count();
-            double cacheHitRate = totalRecipes > 0 ? (double) cacheSize / totalRecipes * 100 : 0.0;
+            double hitRate = totalRecipes > 0 ? (double) cacheSize / totalRecipes * 100 : 0.0;
             return ResponseEntity.ok(Map.of(
-                "cache_size", cacheSize,
-                "total_recipes", totalRecipes,
-                "cache_hit_rate", Math.round(cacheHitRate * 100) / 100.0 + "%",
-                "nlp_features", List.of(
-                    "Recherche sémantique",
-                    "Similarité par embeddings",
-                    "Analyse de sentiments",
-                    "Extraction de mots-clés",
-                    "Auto-catégorisation"
-                )
+                    "cache_size", cacheSize,
+                    "total_recipes", totalRecipes,
+                    "cache_hit_rate", Math.round(hitRate * 100) / 100.0 + "%",
+                    "nlp_features", List.of(
+                            "Recherche sémantique",
+                            "Analyse sentiments",
+                            "Extraction mots-clés",
+                            "Auto-catégorisation",
+                            "Similarité embeddings",
+                            "Insights utilisateur NLP"    
+                    )
             ));
         });
     }

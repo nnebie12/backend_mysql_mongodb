@@ -22,7 +22,6 @@ public class RecetteInteractionServiceImpl implements RecetteInteractionService 
     private RecetteInteractionRepository repository;
     
     @Override
-    @PreAuthorize("hasRole('ADMINISTRATEUR')")
     public RecetteInteraction save(RecetteInteraction interaction) {
         return repository.save(interaction);
     }

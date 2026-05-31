@@ -1,9 +1,8 @@
 package com.example.demo.entiesMongodb;
 
+import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import lombok.Data;
 
 @Data

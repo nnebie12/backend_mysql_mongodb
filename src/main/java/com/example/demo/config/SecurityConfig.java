@@ -27,31 +27,32 @@ import com.example.demo.security.JwtUtil;
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
-    
+
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
-    
-    public SecurityConfig(@Lazy JwtUtil jwtUtil, 
+
+    public SecurityConfig(@Lazy JwtUtil jwtUtil,
                          @Lazy CustomUserDetailsService userDetailsService) {
         this.jwtUtil = jwtUtil;
         this.userDetailsService = userDetailsService;
     }
-    
+
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
         return new JwtAuthenticationFilter(jwtUtil, userDetailsService);
     }
-    
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(authorize -> authorize
-                // Auth endpoints - publics
+
+                // ── Authentification ─────────────────────────────────
                 .requestMatchers("/api/v1/auth/**").permitAll()
-                
-                // Swagger/OpenAPI - publics
+
+                // ── Documentation API ────────────────────────────────
                 .requestMatchers(
                     "/v3/api-docs/**",
                     "/swagger-ui/**",
@@ -59,91 +60,101 @@ public class SecurityConfig {
                     "/webjars/**",
                     "/configuration/**"
                 ).permitAll()
-                
-                // Recettes - publics (lecture seule)
+
+                // ── Recettes : lecture publique ──────────────────────
                 .requestMatchers("/api/v1/recettes/all").permitAll()
-                .requestMatchers("/api/v1/recettes/*").permitAll()
                 .requestMatchers("/api/v1/recettes/*/details").permitAll()
                 .requestMatchers("/api/v1/recettes/*/ingredients").permitAll()
                 .requestMatchers("/api/v1/recettes/*/commentaires").permitAll()
                 .requestMatchers("/api/v1/recettes/*/notes").permitAll()
                 .requestMatchers("/api/v1/recettes/*/moyenne-notes").permitAll()
-                
-                // Ingrédients - publics (lecture)
+                .requestMatchers("/api/v1/recettes/*").permitAll()
+
+                // ── Ingrédients : lecture publique ───────────────────
                 .requestMatchers("/api/v1/IngredientEntity/all").permitAll()
+                .requestMatchers("/api/v1/IngredientEntity/nom/**").permitAll()
                 .requestMatchers("/api/v1/IngredientEntity/*").permitAll()
-                .requestMatchers("/api/v1/IngredientEntity/nom/{nom}").permitAll()
-                
-                // RecetteIngredient - publics (lecture)
                 .requestMatchers("/api/recetteIngredient/recette/*").permitAll()
-                
-                // Recommandation - publics (lecture)
-                .requestMatchers("/api/v1/recommandations/**").permitAll()
-                .requestMatchers("/api/v1/historique-recherche/**").permitAll()
-                .requestMatchers("/api/v1/recommendations/**").permitAll()
-                .requestMatchers("/api/v1/ai-recommendations/**").permitAll()
-                .requestMatchers("/api/v1/nlp/**").permitAll()
-                
+
+                // ── NLP : uniquement les recherches publiques ────────
+                // ✅ CORRIGÉ : on n'ouvre plus TOUT /nlp/** au public.
+                // Seule la recherche sémantique est publique (fonctionnalité de découverte).
+                // Les insights utilisateur et le sentiment nécessitent une authentification.
+                .requestMatchers("/api/v1/nlp/search/semantic").permitAll()
+                .requestMatchers("/api/v1/nlp/stats").permitAll()
+
+                // ── Recommandations : authentification requise ───────
+                // ✅ CORRIGÉ : suppression du .permitAll() global sur /recommandations/**
+                // Un utilisateur doit être connecté pour accéder à ses recommandations.
+                .requestMatchers("/api/v1/recommandations/**").authenticated()
+                .requestMatchers("/api/v1/recommendations/**").authenticated()
+                .requestMatchers("/api/v1/ai-recommendations/**").authenticated()
+
+                // NLP insights et sentiment : authentification requise
+                .requestMatchers("/api/v1/nlp/**").authenticated()
+
+                // Historique de recherche : authentification requise
+                .requestMatchers("/api/v1/historique-recherche/**").authenticated()
+
+                // ── Administration ───────────────────────────────────
                 .requestMatchers("/api/v1/users/**").hasAnyRole("ADMIN", "ADMINISTRATEUR")
                 .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "ADMINISTRATEUR")
                 .requestMatchers("/api/administrateur/**").hasAnyRole("ADMIN", "ADMINISTRATEUR")
-                
-                .requestMatchers("/api/v1/comportement-utilisateur/stats/**").hasAnyRole("ADMIN", "ADMINISTRATEUR")
-                .requestMatchers("/api/v1/comportement-utilisateur/engaged").hasAnyRole("ADMIN", "ADMINISTRATEUR")
-                .requestMatchers("/api/v1/comportement-utilisateur/profil/**").hasAnyRole("ADMIN", "ADMINISTRATEUR")
+
+                // ── Comportement utilisateur ─────────────────────────
+                .requestMatchers("/api/v1/comportement-utilisateur/stats/**")
+                    .hasAnyRole("ADMIN", "ADMINISTRATEUR")
+                .requestMatchers("/api/v1/comportement-utilisateur/engaged")
+                    .hasAnyRole("ADMIN", "ADMINISTRATEUR")
+                .requestMatchers("/api/v1/comportement-utilisateur/profil/**")
+                    .hasAnyRole("ADMIN", "ADMINISTRATEUR")
                 .requestMatchers("/api/v1/comportement-utilisateur/**").authenticated()
-                
+
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
-            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);        
+            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
-    
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-    
+
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
-    
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        
-        // ⭐ CORRECTION : Utiliser le bon format pour allowedOriginPatterns
+
         configuration.setAllowedOriginPatterns(Arrays.asList(
-            "http://localhost:*",      // ✅ Notation correcte
-            "http://127.0.0.1:*",      // ✅ Notation correcte
-            "chrome-extension://*"      // ✅ Pour l'extension Chrome
+            "http://localhost:*",
+            "http://127.0.0.1:*",
+            "chrome-extension://*"
         ));
-        
-        // Méthodes HTTP autorisées
+
         configuration.setAllowedMethods(Arrays.asList(
             "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"
         ));
-        
-        // Headers autorisés
+
         configuration.setAllowedHeaders(Arrays.asList("*"));
-        
-        // Headers exposés
+
         configuration.setExposedHeaders(Arrays.asList(
-            "Authorization", 
+            "Authorization",
             "Content-Type",
             "X-Total-Count"
         ));
-        
-        // ⭐ Autorise les credentials (cookies, auth headers)
+
         configuration.setAllowCredentials(true);
-        
-        // Cache de la config CORS (1h)
         configuration.setMaxAge(3600L);
-        
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

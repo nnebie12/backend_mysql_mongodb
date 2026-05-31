@@ -9,7 +9,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.example.demo.DTO.CommentaireRequestDTO;
@@ -37,6 +38,8 @@ import jakarta.transaction.Transactional;
 
 @Service
 	public class RecetteServiceImpl implements RecetteService {
+
+	private static final Logger logger = LoggerFactory.getLogger(RecetteServiceImpl.class);
 	
 	 private final RecetteRepository recetteRepository;
 	 private final UserRepository userRepository;
@@ -44,7 +47,6 @@ import jakarta.transaction.Transactional;
 	 private final IngredientRepository ingredientRepository;
 	 private final RecetteMapper recetteMapper;
 	
-	 @Autowired
 	 public RecetteServiceImpl(RecetteRepository recetteRepository,
 	                           UserRepository userRepository,
 	                           RecetteDetailsRepository recetteDetailsRepository,
@@ -83,7 +85,7 @@ import jakarta.transaction.Transactional;
 	            savedRecette.setRecetteMongoId(savedDetails.getId());
 	            recetteRepository.save(savedRecette);
 	        } catch (Exception e) {
-	            System.err.println("Erreur MongoDB pour la recette " + savedRecette.getId() + ": " + e.getMessage());
+	            logger.error("Erreur MongoDB pour la recette {} : {}", savedRecette.getId(), e.getMessage(), e);
 	        }
 
 	        return convertToRecetteResponseDTO(savedRecette);

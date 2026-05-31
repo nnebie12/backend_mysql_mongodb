@@ -1,10 +1,11 @@
 package com.example.demo.web.controllersMongoDB;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,6 +23,8 @@ import com.example.demo.web.mapper.ComportementUtilisateurMapper;
 @RestController
 @RequestMapping("/api/v1/comportement-utilisateur")
 public class ComportementUtilisateurController {
+
+    private static final Logger logger = LoggerFactory.getLogger(ComportementUtilisateurController.class);
     
     private final ComportementUtilisateurService comportementService;
     private final ComportementUtilisateurMapper mapper;
@@ -125,29 +128,7 @@ public class ComportementUtilisateurController {
     @GetMapping("/user/{userId}/analyse-avancee")
     @PreAuthorize("hasAnyRole('ADMIN', 'ADMINISTRATEUR') or (#userId == authentication.principal.id)")
     public ResponseEntity<Map<String, Object>> getAnalyseAvancee(@PathVariable Long userId) {
-        // Remplacer getBehaviorByUserId par getOrCreateBehavior pour éviter le 404
-        ComportementUtilisateur comportement = comportementService.getOrCreateBehavior(userId);
-        
-        Map<String, Object> analyse = new HashMap<>();
-        
-        // Initialisation par défaut pour éviter les Maps vides
-        analyse.put("userId", userId);
-        
-        if (comportement.getMetriques() != null) {
-            analyse.put("metriques", Map.of(
-                "scoreEngagement", Optional.ofNullable(comportement.getMetriques().getScoreEngagement()).orElse(0.0),
-                "profilUtilisateur", Optional.ofNullable(comportement.getMetriques().getProfilUtilisateur()).map(Enum::name).orElse("NOUVEAU"),
-                "risqueChurn", calculerRisqueChurn(comportement),
-                "scoreRecommandation", Optional.ofNullable(comportement.getMetriques().getScoreRecommandation()).orElse(0.0)
-            ));
-        } else {
-            // Fallback si métriques nulles
-            analyse.put("metriques", Map.of("scoreEngagement", 0.0, "profilUtilisateur", "NOUVEAU", "risqueChurn", 50.0));
-        }
-
-        analyse.put("segmentRFM", determinerSegmentRFM(comportement));
-        
-        return new ResponseEntity<>(analyse, HttpStatus.OK);
+        return new ResponseEntity<>(comportementService.analyserComportementAvance(userId), HttpStatus.OK);
     }
     
     /**
@@ -156,22 +137,7 @@ public class ComportementUtilisateurController {
     @GetMapping("/user/{userId}/risque-churn")
     @PreAuthorize("hasAnyRole('ADMIN', 'ADMINISTRATEUR') or (#userId == authentication.principal.id)")
     public ResponseEntity<Map<String, Object>> getRisqueChurn(@PathVariable Long userId) {
-        Optional<ComportementUtilisateur> comportementOpt = comportementService.getBehaviorByUserId(userId);
-        
-        if (comportementOpt.isEmpty()) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
-        
-        double risqueChurn = calculerRisqueChurn(comportementOpt.get());
-        String niveau = risqueChurn > 70 ? "CRITIQUE" : risqueChurn > 40 ? "MOYEN" : "FAIBLE";
-        
-        Map<String, Object> result = Map.of(
-            "risqueChurn", risqueChurn,
-            "niveau", niveau,
-            "recommandations", genererRecommandationsChurn(risqueChurn)
-        );
-        
-        return new ResponseEntity<>(result, HttpStatus.OK);
+        return new ResponseEntity<>(comportementService.obtenirRisqueChurn(userId), HttpStatus.OK);
     }
     
     /**
@@ -180,14 +146,7 @@ public class ComportementUtilisateurController {
     @GetMapping("/user/{userId}/segmentation-rfm")
     @PreAuthorize("hasAnyRole('ADMIN', 'ADMINISTRATEUR') or (#userId == authentication.principal.id)")
     public ResponseEntity<Map<String, Object>> getSegmentationRFM(@PathVariable Long userId) {
-        Optional<ComportementUtilisateur> comportementOpt = comportementService.getBehaviorByUserId(userId);
-        
-        if (comportementOpt.isEmpty()) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
-        
-        Map<String, Object> segmentation = determinerSegmentRFM(comportementOpt.get());
-        return new ResponseEntity<>(segmentation, HttpStatus.OK);
+        return new ResponseEntity<>(comportementService.obtenirSegmentRFM(userId), HttpStatus.OK);
     }
     
     /**
@@ -196,35 +155,40 @@ public class ComportementUtilisateurController {
     @GetMapping("/user/{userId}/actions-engagement")
     @PreAuthorize("hasAnyRole('ADMIN', 'ADMINISTRATEUR') or (#userId == authentication.principal.id)")
     public ResponseEntity<List<Map<String, String>>> getActionsEngagement(@PathVariable Long userId) {
-        Optional<ComportementUtilisateur> comportementOpt = comportementService.getBehaviorByUserId(userId);
-        
-        if (comportementOpt.isEmpty()) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
-        
-        ComportementUtilisateur comportement = comportementOpt.get();
-        double scoreEngagement = comportement.getMetriques() != null && comportement.getMetriques().getScoreEngagement() != null
-            ? comportement.getMetriques().getScoreEngagement() : 0.0;
-        
-        List<Map<String, String>> actions = genererActionsEngagement(scoreEngagement, comportement);
-        return new ResponseEntity<>(actions, HttpStatus.OK);
+        return new ResponseEntity<>(comportementService.obtenirActionsEngagement(userId), HttpStatus.OK);
     }
     
     // ==================== STATISTIQUES GLOBALES ====================
-    
+
     /**
-     * Récupère les statistiques RFM globales pour le dashboard
+     * Endpoint alias pour le frontend userBehaviorService.js
+     * qui appelle GET /api/v1/comportement-utilisateur/stats-globales.
+     * Délègue au service d'analyse avancée.
      */
+    @GetMapping("/stats-globales")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ADMINISTRATEUR')")
+    public ResponseEntity<Map<String, Object>> getStatsGlobales() {
+        List<ComportementUtilisateur> tous = comportementService.getEngagedUsers(0.0);
+        long actifs  = tous.stream().filter(c -> c.getMetriques() != null
+            && c.getMetriques().getScoreEngagement() != null
+            && c.getMetriques().getScoreEngagement() >= 50).count();
+        long inactifs = tous.size() - actifs;
+        return ResponseEntity.ok(Map.of(
+            "totalUtilisateurs", tous.size(),
+            "actifs", actifs,
+            "inactifs", inactifs
+        ));
+    }
+
     @GetMapping("/stats/rfm")
     @PreAuthorize("hasAnyRole('ADMIN', 'ADMINISTRATEUR')")
     public ResponseEntity<Map<String, Integer>> getStatsRFM() {
         try {
-            // 🔍 DEBUG
-            System.out.println("📊 Calcul des stats RFM...");
+            logger.info("Calcul des stats RFM");
             
             List<ComportementUtilisateur> tousUtilisateurs = comportementService.getEngagedUsers(0.0);
             
-            System.out.println("👥 Nombre total d'utilisateurs: " + tousUtilisateurs.size());
+            logger.info("Nombre total d'utilisateurs: {}", tousUtilisateurs.size());
             
             int champions = 0, fideles = 0, risque = 0, nouveaux = 0;
             
@@ -265,7 +229,7 @@ public class ComportementUtilisateurController {
                     "risque", 0,
                     "nouveau", 0
                 );
-                System.out.println("⚠️ Aucun utilisateur trouvé, retour de stats vides");
+                logger.warn("Aucun utilisateur trouvé, retour de stats vides");
                 return ResponseEntity.ok(statsVides);
             }
             
@@ -276,12 +240,11 @@ public class ComportementUtilisateurController {
                 "nouveau", (nouveaux * 100) / total
             );
             
-            System.out.println("✅ Stats RFM calculées: " + stats);
+            logger.info("Stats RFM calculées: {}", stats);
             return ResponseEntity.ok(stats);
             
         } catch (Exception e) {
-            System.err.println("❌ Erreur dans getStatsRFM: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("Erreur dans getStatsRFM: {}", e.getMessage(), e);
             return ResponseEntity.status(500).body(Map.of(
                 "champions", 0,
                 "fidele", 0,
@@ -328,135 +291,18 @@ public class ComportementUtilisateurController {
         @RequestParam(defaultValue = "50.0") Double scoreMinimum
     ) {
         try {
-            System.out.println("🔍 Recherche utilisateurs engagés avec score > " + scoreMinimum);
+            logger.info("Recherche utilisateurs engagés avec score > {}", scoreMinimum);
             
             List<ComportementUtilisateur> utilisateurs = comportementService.getEngagedUsers(scoreMinimum);
             
-            System.out.println("✅ Trouvé " + utilisateurs.size() + " utilisateurs engagés");
+            logger.info("Trouvé {} utilisateurs engagés", utilisateurs.size());
             
             return ResponseEntity.ok(mapper.toResponseDtoList(utilisateurs));
             
         } catch (Exception e) {
-            System.err.println("❌ Erreur dans getEngagedUsers: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("Erreur dans getEngagedUsers: {}", e.getMessage(), e);
             return ResponseEntity.status(500).body(List.of());
         }
     }
     
-    // ==================== MÉTHODES UTILITAIRES PRIVÉES ====================
-    
-    private double calculerRisqueChurn(ComportementUtilisateur comportement) {
-        double risque = 0.0;
-        
-        if (comportement.getMetriques() == null) return 80.0;
-        
-        Double scoreEngagement = comportement.getMetriques().getScoreEngagement();
-        if (scoreEngagement == null || scoreEngagement < 20) {
-            risque = 80.0;
-        } else if (scoreEngagement < 40) {
-            risque = 60.0;
-        } else if (scoreEngagement < 60) {
-            risque = 30.0;
-        } else {
-            risque = 10.0;
-        }
-        
-        // Ajuster selon la dernière activité
-        if (comportement.getMetriques().getDerniereActivite() != null) {
-            long joursInactivite = java.time.Duration.between(
-                comportement.getMetriques().getDerniereActivite(),
-                java.time.LocalDateTime.now()
-            ).toDays();
-            
-            if (joursInactivite > 30) risque += 20;
-            else if (joursInactivite > 14) risque += 10;
-        }
-        
-        return Math.min(100.0, risque);
-    }
-    
-    private Map<String, Object> determinerSegmentRFM(ComportementUtilisateur comportement) {
-        String segment;
-        String description;
-        
-        if (comportement.getMetriques() == null) {
-            segment = "NOUVEAU";
-            description = "Utilisateur récent sans historique suffisant";
-        } else {
-            Double score = comportement.getMetriques().getScoreEngagement();
-            ProfilUtilisateur profil = comportement.getMetriques().getProfilUtilisateur();
-            
-            if (score != null && score > 80 && profil == ProfilUtilisateur.FIDELE) {
-                segment = "CHAMPION";
-                description = "Utilisateur très engagé et fidèle";
-            } else if (score != null && score > 60) {
-                segment = "FIDELE";
-                description = "Utilisateur régulier et engagé";
-            } else if (score != null && score > 30) {
-                segment = "ACTIF";
-                description = "Utilisateur moyennement actif";
-            } else {
-                segment = "A_RISQUE";
-                description = "Utilisateur à réengager";
-            }
-        }
-        
-        return Map.of(
-            "segment", segment,
-            "description", description,
-            "scoreEngagement", comportement.getMetriques() != null && comportement.getMetriques().getScoreEngagement() != null
-                ? comportement.getMetriques().getScoreEngagement() : 0.0
-        );
-    }
-    
-    private List<String> genererRecommandationsChurn(double risqueChurn) {
-        if (risqueChurn > 70) {
-            return List.of(
-                "Envoyer une notification personnalisée immédiate",
-                "Proposer du contenu exclusif ou une offre spéciale",
-                "Organiser un contact direct (email, SMS)"
-            );
-        } else if (risqueChurn > 40) {
-            return List.of(
-                "Relancer avec des recommandations personnalisées",
-                "Envoyer un digest hebdomadaire des nouveautés"
-            );
-        } else {
-            return List.of(
-                "Continuer l'engagement régulier",
-                "Proposer du contenu premium"
-            );
-        }
-    }
-    
-    private List<Map<String, String>> genererActionsEngagement(double scoreEngagement, ComportementUtilisateur comportement) {
-        List<Map<String, String>> actions = new java.util.ArrayList<>();
-        
-        if (scoreEngagement < 30) {
-            actions.add(Map.of(
-                "typeRecommandation", "Notification Push",
-                "description", "Envoyer une recette personnalisée basée sur ses préférences",
-                "priorite", "HAUTE"
-            ));
-            actions.add(Map.of(
-                "typeRecommandation", "Email de Réengagement",
-                "description", "Proposer une découverte guidée de nouvelles fonctionnalités",
-                "priorite", "HAUTE"
-            ));
-        } else if (scoreEngagement < 60) {
-            actions.add(Map.of(
-                "typeRecommandation", "Suggestion Proactive",
-                "description", "Recommander des recettes tendance adaptées à ses habitudes",
-                "priorite", "MOYENNE"
-            ));
-        } else {
-            actions.add(Map.of(
-                "typeRecommandation", "Contenu Premium",
-                "description", "Proposer du contenu exclusif pour utilisateurs fidèles",
-                "priorite", "BASSE"
-            ));
-        }
-        
-        return actions;
-    }
 }
