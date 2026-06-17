@@ -30,8 +30,8 @@ import com.example.demo.entitiesMysql.RecetteEntity;
 import com.example.demo.repositoryMongoDB.NoteMongoRepository;
 import com.example.demo.repositoryMongoDB.RecetteInteractionRepository;
 import com.example.demo.repositoryMysql.RecetteRepository;
-import com.example.demo.servicesMongoDB.RecommandationIAService;
 import com.example.demo.servicesMongoDB.RecetteInteractionService;
+import com.example.demo.servicesMongoDB.RecommandationIAService;
 import com.example.demo.web.mapper.RecetteMapper;
 
 @RestController

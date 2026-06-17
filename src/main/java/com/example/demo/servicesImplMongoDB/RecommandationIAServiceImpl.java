@@ -1,25 +1,30 @@
 package com.example.demo.servicesImplMongoDB;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
 import com.example.demo.DTO.RecetteResponseDTO;
+import com.example.demo.entiesMongodb.ComportementUtilisateur;
 import com.example.demo.entiesMongodb.NoteDocument;
+import com.example.demo.entiesMongodb.RecetteInteraction;
 import com.example.demo.entiesMongodb.RecommandationIA;
 import com.example.demo.entiesMongodb.RecommandationIA.RecommandationDetail;
-import com.example.demo.entiesMongodb.ComportementUtilisateur;
-import com.example.demo.entiesMongodb.RecetteInteraction;
 import com.example.demo.entiesMongodb.enums.ProfilUtilisateur;
 import com.example.demo.entiesMongodb.enums.Saison;
 import com.example.demo.entitiesMysql.RecetteEntity;
 import com.example.demo.repositoryMongoDB.ComportementUtilisateurRepository;
 import com.example.demo.repositoryMongoDB.RecommandationIARepository;
-import com.example.demo.servicesMongoDB.RecommandationIAService;
 import com.example.demo.servicesMongoDB.ComportementUtilisateurService;
 import com.example.demo.servicesMongoDB.EnhancedRecommandationService;
 import com.example.demo.servicesMongoDB.PropositionRecommandationService;
+import com.example.demo.servicesMongoDB.RecommandationIAService;
 import com.example.demo.servicesMysql.SmsService;
 
 @Service
