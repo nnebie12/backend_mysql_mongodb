@@ -35,7 +35,7 @@ import com.example.demo.servicesMongoDB.RecetteInteractionService;
 import com.example.demo.web.mapper.RecetteMapper;
 
 @RestController
-@RequestMapping("/api/v1/recommendations")
+@RequestMapping({"/api/v1/recommendations", "/api/v1/ai/recommendations"})
 public class RecommendationController {
 
     private static final Logger logger = LoggerFactory.getLogger(RecommendationController.class);
@@ -106,6 +106,23 @@ public class RecommendationController {
             @PathVariable Long userId,
             @RequestParam(defaultValue = "10") int limit) {
         return getPersonalizedRecommendations(userId, limit);
+    }
+
+    // Alias frontend seasonal/habit-based exposés via le préfixe /api/v1/ai/recommendations
+    @PostMapping("/seasonal/{userId}")
+    public ResponseEntity<?> getSeasonalRecommendationsAiAlias(@PathVariable Long userId) {
+        return execute(() -> new ResponseEntity<>(
+            recommandationService.genererRecommandationSaisonniere(userId),
+            HttpStatus.CREATED
+        ));
+    }
+
+    @PostMapping("/habit-based/{userId}")
+    public ResponseEntity<?> getHabitBasedRecommendationsAiAlias(@PathVariable Long userId) {
+        return execute(() -> new ResponseEntity<>(
+            recommandationService.genererRecommandationHabitudes(userId),
+            HttpStatus.CREATED
+        ));
     }
 
     @GetMapping("/similar/{recipeId}")

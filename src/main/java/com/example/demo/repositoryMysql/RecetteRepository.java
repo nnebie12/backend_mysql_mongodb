@@ -15,7 +15,14 @@ public interface RecetteRepository extends JpaRepository<RecetteEntity, Long>{
     List<RecetteEntity> findByUserEntity(UserEntity userEntity);
     List<RecetteEntity> findByTitreContainingIgnoreCase(String titre);
     Optional<RecetteEntity> findByRecetteMongoId(String recetteMongoId);
+
     @Query("SELECT r FROM RecetteEntity r LEFT JOIN FETCH r.userEntity")
     List<RecetteEntity> findAllWithUser();
+
+    @Query("SELECT DISTINCT r FROM RecetteEntity r " +
+           "LEFT JOIN FETCH r.userEntity " +
+           "LEFT JOIN FETCH r.recetteIngredients ri " +
+           "LEFT JOIN FETCH ri.ingredientEntity")
+    List<RecetteEntity> findAllWithUserAndIngredients();
     
 }

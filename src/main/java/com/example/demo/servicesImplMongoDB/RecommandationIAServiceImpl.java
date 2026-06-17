@@ -150,6 +150,14 @@ public class RecommandationIAServiceImpl implements RecommandationIAService {
     }
 
     @Override
+    public void deleteRecommandationById(String recommandationId) {
+        if (!recommandationRepository.existsById(recommandationId)) {
+            throw new RuntimeException("Recommandation non trouvée : " + recommandationId);
+        }
+        recommandationRepository.deleteById(recommandationId);
+    }
+
+    @Override
     public void deleteRecommandationsUser(Long userId) {
         List<RecommandationIA> list = recommandationRepository.findByUserId(userId);
         if (list != null && !list.isEmpty()) recommandationRepository.deleteAll(list);

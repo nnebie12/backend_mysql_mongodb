@@ -93,7 +93,7 @@ import jakarta.transaction.Transactional;
 	
 	 @Override
 	 public List<RecetteResponseDTO> getAllRecettes() {
-	     return recetteRepository.findAll().stream()
+	     return recetteRepository.findAllWithUserAndIngredients().stream()
 	             .map(this::convertToRecetteResponseDTO)
 	             .collect(Collectors.toList());
 	 }
@@ -175,9 +175,8 @@ import jakarta.transaction.Transactional;
 	             .orElseThrow(() -> new RuntimeException("Recette non trouvée avec l'ID: " + recetteEntityId));
 	     UserEntity userEntity = userRepository.findById(userId)
 	             .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé avec l'ID: " + userId));
-	
-	     RecetteDetailsDocument details = recetteDetailsRepository.findById(recetteEntity.getRecetteMongoId())
-	             .orElseThrow(() -> new RuntimeException("Détails de recette non trouvés pour la recette Mongo ID: " + recetteEntity.getRecetteMongoId()));
+
+	     RecetteDetailsDocument details = getOrCreateRecetteDetails(recetteEntity);
 	
 	     CommentaireDocument commentaireDocument = new CommentaireDocument();
 	     commentaireDocument.setContenu(commentaireDTO.getContenu());
@@ -206,9 +205,8 @@ import jakarta.transaction.Transactional;
 	             .orElseThrow(() -> new RuntimeException("Recette non trouvée avec l'ID: " + recetteEntityId));
 	     UserEntity user = userRepository.findById(userId)
 	             .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé avec l'ID: " + userId));
-	
-	     RecetteDetailsDocument details = recetteDetailsRepository.findById(recetteEntity.getRecetteMongoId())
-	             .orElseThrow(() -> new RuntimeException("Détails de recette non trouvés pour la recette Mongo ID: " + recetteEntity.getRecetteMongoId()));
+
+	     RecetteDetailsDocument details = getOrCreateRecetteDetails(recetteEntity);
 	
 	     NoteDocument noteDocument = new NoteDocument();
 	     noteDocument.setValeur(noteDTO.getValeur());
@@ -346,4 +344,39 @@ import jakarta.transaction.Transactional;
 	        }
 	        return dto;
 	    }
+
+		private RecetteDetailsDocument getOrCreateRecetteDetails(RecetteEntity recetteEntity) {
+		    String mongoId = recetteEntity.getRecetteMongoId();
+
+		    if (mongoId != null && !mongoId.isBlank()) {
+		        Optional<RecetteDetailsDocument> byMongoId = recetteDetailsRepository.findById(mongoId);
+		        if (byMongoId.isPresent()) {
+		            return byMongoId.get();
+		        }
+		        logger.warn("Détails Mongo introuvables pour recetteMongoId={}, tentative de réconciliation par recetteId={}",
+		                mongoId, recetteEntity.getId());
+		    }
+
+		    Optional<RecetteDetailsDocument> byRecetteId = recetteDetailsRepository.findByRecetteId(String.valueOf(recetteEntity.getId()));
+		    if (byRecetteId.isPresent()) {
+		        recetteEntity.setRecetteMongoId(byRecetteId.get().getId());
+		        recetteRepository.save(recetteEntity);
+		        return byRecetteId.get();
+		    }
+
+		    RecetteDetailsDocument created = new RecetteDetailsDocument();
+		    created.setRecetteId(String.valueOf(recetteEntity.getId()));
+		    created.setCommentaires(new ArrayList<>());
+		    created.setNotes(new ArrayList<>());
+		    created.setMoyenneNotes(0.0);
+		    created.setNombreCommentaires(0);
+		    created.setNombreNotes(0);
+
+		    RecetteDetailsDocument saved = recetteDetailsRepository.save(created);
+		    recetteEntity.setRecetteMongoId(saved.getId());
+		    recetteRepository.save(recetteEntity);
+		    logger.info("Réconciliation Mongo effectuée pour recetteId={}, nouveau recetteMongoId={}",
+		            recetteEntity.getId(), saved.getId());
+		    return saved;
+		}
 }

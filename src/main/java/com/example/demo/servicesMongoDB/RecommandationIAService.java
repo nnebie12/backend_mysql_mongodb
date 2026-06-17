@@ -16,6 +16,7 @@ public interface RecommandationIAService {
     List<RecommandationIA> getRecommandationsByUserId(Long userId);
     List<RecommandationIA> getRecommandationsByUserIdAndType(Long userId, String type);
     RecommandationIA markAsUsed(String recommandationId);
+        void deleteRecommandationById(String recommandationId);
     void deleteRecommandationsUser(Long userId);
     
     RecommandationIA genererRecommandationHybride(Long userId);

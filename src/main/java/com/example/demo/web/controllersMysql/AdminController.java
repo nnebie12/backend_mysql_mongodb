@@ -186,14 +186,7 @@ public class AdminController {
     @DeleteMapping("/recommandations/{id}")
     public ResponseEntity<Void> deleteRecommandation(@PathVariable String id) {
         return execute(() -> {
-            recommandationIAService.deleteRecommandationsUser(
-                    recommandationIAService.getAllRecommandations()
-                            .stream()
-                            .filter(r -> r.getId().equals(id))
-                            .findFirst()
-                            .map(RecommandationIA::getUserId)
-                            .orElseThrow(() -> new RuntimeException("Recommandation introuvable : " + id))
-            );
+            recommandationIAService.deleteRecommandationById(id);
             logger.info("Recommandation supprimée : {}", id);
             return ResponseEntity.noContent().<Void>build();
         });
