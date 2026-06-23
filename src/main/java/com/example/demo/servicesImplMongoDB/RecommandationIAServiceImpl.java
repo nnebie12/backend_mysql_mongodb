@@ -103,6 +103,30 @@ public class RecommandationIAServiceImpl implements RecommandationIAService {
     }
 
     @Override
+    public RecommandationIA addRecommandation(Long userId, String type,
+                                               List<RecommandationDetail> recommandation,
+                                               Double score, String profilUtilisateurCible,
+                                               Double scoreEngagementReference, String creneauCible,
+                                               List<String> categoriesRecommandees) {
+        // ✅ AJOUT — surcharge enrichie : renseigne désormais les champs de
+        // contexte au moment de la création, au lieu de les laisser null.
+        RecommandationIA newRec = new RecommandationIA();
+        newRec.setUserId(userId);
+        newRec.setType(type);
+        newRec.setRecommandation(recommandation);
+        newRec.setScore(score);
+        newRec.setDateRecommandation(LocalDateTime.now());
+        newRec.setEstUtilise(false);
+        newRec.setProfilUtilisateurCible(profilUtilisateurCible);
+        newRec.setScoreEngagementReference(scoreEngagementReference);
+        newRec.setCreneauCible(creneauCible);
+        newRec.setCategoriesRecommandees(categoriesRecommandees);
+        RecommandationIA saved = recommandationRepository.save(newRec);
+        envoyerNotificationSMS(saved);
+        return saved;
+    }
+
+    @Override
     public List<RecommandationIA> getAllRecommandations() {
         return recommandationRepository.findAll();
     }

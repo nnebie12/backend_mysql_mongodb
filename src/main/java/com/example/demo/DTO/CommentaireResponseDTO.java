@@ -1,9 +1,10 @@
 package com.example.demo.DTO;
 
+import java.time.LocalDateTime;
+
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
-import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -14,4 +15,5 @@ public class CommentaireResponseDTO {
     private LocalDateTime dateCommentaire;
     private String userId;
     private String userName;
+    private Long recetteId;
 }

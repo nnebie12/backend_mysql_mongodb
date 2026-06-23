@@ -12,4 +12,8 @@ public class RecommandationIACreationDTO {
     private String type;
     private List<RecommandationDetail> recommandations;
     private Double score;
+    private String profilUtilisateurCible;
+    private Double scoreEngagementReference;
+    private String creneauCible;
+    private List<String> categoriesRecommandees;
 }

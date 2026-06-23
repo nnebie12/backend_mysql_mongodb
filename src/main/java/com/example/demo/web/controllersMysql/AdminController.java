@@ -23,9 +23,11 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.demo.DTO.AnalysePatternsDTO;
 import com.example.demo.DTO.UserAdminResponseDTO;      // ✅ NOUVEAU DTO sécurisé
 import com.example.demo.entiesMongodb.ComportementUtilisateur;
+import com.example.demo.entiesMongodb.RecetteDetailsDocument;
 import com.example.demo.entiesMongodb.RecommandationIA;
 import com.example.demo.entiesMongodb.enums.ProfilUtilisateur;
 import com.example.demo.entitiesMysql.UserEntity;
+import com.example.demo.repositoryMongoDB.RecetteDetailsRepository;
 import com.example.demo.servicesMongoDB.ComportementUtilisateurService;
 import com.example.demo.servicesMongoDB.RecommandationIAService;
 import com.example.demo.servicesMysql.RecetteService;
@@ -42,15 +44,18 @@ public class AdminController {
     private final RecetteService recetteService;
     private final ComportementUtilisateurService comportementUtilisateurService;
     private final RecommandationIAService recommandationIAService;
+    private final RecetteDetailsRepository recetteDetailsRepository;
 
     public AdminController(UserService userService,
                            RecetteService recetteService,
                            ComportementUtilisateurService comportementUtilisateurService,
-                           RecommandationIAService recommandationIAService) {
+                           RecommandationIAService recommandationIAService,
+                           RecetteDetailsRepository recetteDetailsRepository) {
         this.userService = userService;
         this.recetteService = recetteService;
         this.comportementUtilisateurService = comportementUtilisateurService;
         this.recommandationIAService = recommandationIAService;
+        this.recetteDetailsRepository = recetteDetailsRepository;
     }
 
     private <T> ResponseEntity<T> execute(Supplier<ResponseEntity<T>> action) {
@@ -106,6 +111,57 @@ public class AdminController {
         return execute(() -> {
             recetteService.deleteRecette(id);
             return ResponseEntity.noContent().build();
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    //  ✅ AJOUT — STATISTIQUES DE CONTENU (commentaires + note moyenne)
+    //  Corrige le bug frontend où adminService.js renvoyait des valeurs
+    //  codées en dur (totalComments: 0, avgRating: 4.6) sans jamais
+    //  interroger le backend. Cet endpoint agrège les vraies données
+    //  depuis RecetteDetailsDocument (la structure imbriquée que
+    //  RecipeDetail.jsx affiche réellement côté utilisateur final).
+    // ─────────────────────────────────────────────────────────────────
+
+    @GetMapping("/stats/contenu")
+    public ResponseEntity<Map<String, Object>> getStatsContenu() {
+        return execute(() -> {
+            List<RecetteDetailsDocument> tousLesDetails = recetteDetailsRepository.findAll();
+
+            int totalCommentaires = tousLesDetails.stream()
+                    .mapToInt(d -> d.getNombreCommentaires() != null ? d.getNombreCommentaires() : 0)
+                    .sum();
+
+            int totalNotes = tousLesDetails.stream()
+                    .mapToInt(d -> d.getNombreNotes() != null ? d.getNombreNotes() : 0)
+                    .sum();
+
+            // Moyenne pondérée des moyennes par recette (pondérée par le
+            // nombre de notes de chaque recette, pour ne pas sur-pondérer
+            // une recette à 1 seule note face à une recette à 50 notes)
+            double sommePonderee = tousLesDetails.stream()
+                    .filter(d -> d.getMoyenneNotes() != null && d.getNombreNotes() != null && d.getNombreNotes() > 0)
+                    .mapToDouble(d -> d.getMoyenneNotes() * d.getNombreNotes())
+                    .sum();
+
+            double noteMoyenneGlobale = totalNotes > 0
+                    ? Math.round((sommePonderee / totalNotes) * 100) / 100.0
+                    : 0.0;
+
+            long recettesAvecCommentaires = tousLesDetails.stream()
+                    .filter(d -> d.getNombreCommentaires() != null && d.getNombreCommentaires() > 0)
+                    .count();
+
+            Map<String, Object> stats = Map.of(
+                "totalCommentaires", totalCommentaires,
+                "totalNotes", totalNotes,
+                "noteMoyenneGlobale", noteMoyenneGlobale,
+                "recettesAvecCommentaires", recettesAvecCommentaires,
+                "totalRecettesAvecDetails", tousLesDetails.size()
+            );
+
+            logger.info("Stats contenu calculées : {}", stats);
+            return ResponseEntity.ok(stats);
         });
     }
 
