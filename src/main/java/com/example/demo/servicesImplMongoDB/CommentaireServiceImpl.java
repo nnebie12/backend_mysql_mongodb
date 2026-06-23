@@ -28,7 +28,8 @@ public class CommentaireServiceImpl implements CommentaireService {
             document.getContenu(),
             document.getDateCommentaire(),
             document.getUserId(),
-            document.getUserName()
+            document.getUserName(),
+            document.getRecetteId()
         );
     }
 
@@ -45,8 +46,14 @@ public class CommentaireServiceImpl implements CommentaireService {
         commentaireDocument.setContenu(commentaireDto.getContenu());
         commentaireDocument.setUserId(commentaireDto.getUserId());
         commentaireDocument.setUserName(commentaireDto.getUserName());
-        commentaireDocument.setDateCommentaire(LocalDateTime.now()); 
-        
+        commentaireDocument.setDateCommentaire(LocalDateTime.now());
+
+        // ✅ AJOUT — recetteId est désormais capturé depuis le DTO.
+        // Avant ce correctif, ce champ n'existait pas dans
+        // CommentaireRequestDTO et restait donc toujours null, rendant
+        // le commentaire impossible à rattacher à une recette.
+        commentaireDocument.setRecetteId(commentaireDto.getRecetteId());
+
         if (commentaireDocument.getUserId() == null) {
             commentaireDocument.setUserId("defaultUserId");
         }

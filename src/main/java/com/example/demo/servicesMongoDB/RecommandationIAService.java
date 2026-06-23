@@ -14,6 +14,20 @@ import com.example.demo.entitiesMysql.RecetteEntity;
 public interface RecommandationIAService {
     
     RecommandationIA addRecommandation(Long userId, String type, List<RecommandationDetail> recommandation, Double score);
+
+    /**
+     * ✅ AJOUT — Variante enrichie permettant de renseigner les champs de
+     * contexte (profil cible, score d'engagement de référence, créneau,
+     * catégories) au moment de la création. Sans cette surcharge, ces
+     * champs restaient toujours null en base car RecommandationIACreationDTO
+     * ne les exposait pas et le contrôleur ne les transmettait jamais au
+     * service, quel que soit ce que le client envoyait dans le corps JSON.
+     */
+    RecommandationIA addRecommandation(Long userId, String type, List<RecommandationDetail> recommandation,
+                                        Double score, String profilUtilisateurCible,
+                                        Double scoreEngagementReference, String creneauCible,
+                                        List<String> categoriesRecommandees);
+
     List<RecommandationIA> getRecommandationsByUserId(Long userId);
     List<RecommandationIA> getRecommandationsByUserIdAndType(Long userId, String type);
     RecommandationIA markAsUsed(String recommandationId);

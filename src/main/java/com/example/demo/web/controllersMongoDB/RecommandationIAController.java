@@ -20,7 +20,7 @@ import com.example.demo.entiesMongodb.RecommandationIA;
 import com.example.demo.servicesMongoDB.RecommandationIAService;
 
 @RestController
-@RequestMapping("/api/v1/recommandations") 
+@RequestMapping("/api/v1/recommandations")
 public class RecommandationIAController {
 
     private final RecommandationIAService recommandationService;
@@ -43,11 +43,28 @@ public class RecommandationIAController {
             @RequestParam String type,
             @RequestBody RecommandationIACreationDTO request,
             @RequestParam(required = false, defaultValue = "0.0") Double score) {
-        
+
+        // ✅ Utilise désormais la surcharge enrichie pour ne plus perdre
+        // les champs de contexte envoyés dans le corps de la requête.
         RecommandationIA nouvelleRecommandation = recommandationService.addRecommandation(
-                userId, type, request.getRecommandations(), score);
-        
+                userId, type, request.getRecommandations(), score,
+                request.getProfilUtilisateurCible(),
+                request.getScoreEngagementReference(),
+                request.getCreneauCible(),
+                request.getCategoriesRecommandees());
+
         return new ResponseEntity<>(nouvelleRecommandation, HttpStatus.CREATED);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    //  ✅ AJOUT — Liste TOUTES les recommandations (tous utilisateurs)
+    //  Nécessaire pour les scripts de vérification de cohérence (PFE)
+    //  et tout outil d'analyse/audit côté admin.
+    // ─────────────────────────────────────────────────────────────────
+    @GetMapping("/all")
+    public ResponseEntity<List<RecommandationIA>> getAllRecommandations() {
+        List<RecommandationIA> recommandations = recommandationService.getAllRecommandations();
+        return new ResponseEntity<>(recommandations, HttpStatus.OK);
     }
 
     @GetMapping("/user/{userId}")
@@ -55,32 +72,32 @@ public class RecommandationIAController {
         List<RecommandationIA> recommandations = recommandationService.getRecommandationsByUserId(userId);
         return new ResponseEntity<>(recommandations, HttpStatus.OK);
     }
-    
+
     @PostMapping("/user/{userId}/generer-personnalisee")
     public ResponseEntity<RecommandationIA> genererRecommandationPersonnalisee(@PathVariable Long userId) {
         return execute(() -> new ResponseEntity<>(recommandationService.genererRecommandationPersonnalisee(userId), HttpStatus.CREATED));
     }
-    
+
     @PostMapping("/user/{userId}/generer-saisonniere")
     public ResponseEntity<RecommandationIA> genererRecommandationSaisonniere(@PathVariable Long userId) {
         return execute(() -> new ResponseEntity<>(recommandationService.genererRecommandationSaisonniere(userId), HttpStatus.CREATED));
     }
-    
+
     @PostMapping("/user/{userId}/generer-habitudes")
     public ResponseEntity<RecommandationIA> genererRecommandationHabitudes(@PathVariable Long userId) {
         return execute(() -> new ResponseEntity<>(recommandationService.genererRecommandationHabitudes(userId), HttpStatus.CREATED));
     }
-    
+
     @PostMapping("/user/{userId}/generer-creneau")
     public ResponseEntity<RecommandationIA> genererRecommandationCreneauActuel(@PathVariable Long userId) {
         return execute(() -> new ResponseEntity<>(recommandationService.genererRecommandationCreneauActuel(userId), HttpStatus.CREATED));
     }
-    
+
     @PostMapping("/user/{userId}/generer-engagement")
     public ResponseEntity<RecommandationIA> genererRecommandationEngagement(@PathVariable Long userId) {
         return execute(() -> new ResponseEntity<>(recommandationService.genererRecommandationEngagement(userId), HttpStatus.CREATED));
     }
-    
+
     @PostMapping("/user/{userId}/generer-toutes")
     public ResponseEntity<List<RecommandationIA>> genererToutesRecommandations(@PathVariable Long userId) {
         return execute(() -> {
@@ -99,7 +116,7 @@ public class RecommandationIAController {
     public ResponseEntity<List<RecommandationIA>> getRecommandationsByUserIdAndType(
             @PathVariable Long userId,
             @PathVariable String type) {
-        
+
         List<RecommandationIA> recommandations = recommandationService.getRecommandationsByUserIdAndType(userId, type);
         return new ResponseEntity<>(recommandations, HttpStatus.OK);
     }
@@ -115,8 +132,6 @@ public class RecommandationIAController {
         recommandationService.deleteRecommandationsUser(userId);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
-    
-    
 
     @PostMapping("/user/{userId}/generer-hybride")
     public ResponseEntity<RecommandationIA> genererHybride(@PathVariable Long userId) {

@@ -1,0 +1,20 @@
+RAPPORT DE COHÉRENCE — DOSSIER PFE
+Généré le,2026-06-22 13:38:41
+
+Métrique,Valeur réelle,Cible dossier,Écart,Statut
+Interactions totales,"18,244","18,670",2.28%,OK
+Score pertinence moyen,0.6150,0.61,0.82%,OK
+Taux d'usage,25.63%,18-35%,—,OK
+
+── Distribution interactions par type ──
+FAVORI_AJOUTE,2626
+CONSULTATION,10756
+NOTE_POSEE,3473
+PARTAGE,911
+RECOMMANDATION_UTILISEE,478
+
+── Segmentation RFM ──
+champions,0%
+nouveau,0%
+risque,99%
+fidele,0%
