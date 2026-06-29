@@ -1,9 +1,12 @@
 package com.example.demo.entitiesMysql;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.example.demo.entitiesMysql.ennums.Role;
+import com.example.demo.entitiesMysql.FavorisEntity;
+import com.example.demo.entiesMongodb.NoteDocument;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.CascadeType;
@@ -19,16 +22,22 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.Builder;
+import lombok.ToString;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "users")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class UserEntity {
 
     public UserEntity(Long id, String nom, String prenom, String email, String motDePasse,
@@ -97,8 +106,6 @@ public class UserEntity {
     @Column(name = "newsletter", nullable = false)
     private Boolean newsletter = false;
 
-    @Column(name = "actif", nullable = false)
-    private Boolean actif = true;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -107,5 +114,100 @@ public class UserEntity {
     @OneToMany(mappedBy = "userEntity", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonIgnore 
     private List<RecetteEntity> recettes;
+
+    @OneToMany(mappedBy = "userEntity", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
+    private List<FavorisEntity> favoris = new ArrayList<>(); 
+
+    @Transient
+    @JsonIgnore
+    private List<NoteDocument> notes = new ArrayList<>();
+
+    // ========== NOUVELLES COLONNES RGPD (À AJOUTER) ==========
+
+  /**
+   * Art. 17 RGPD - Soft delete
+   * Marquer le compte comme inactif au lieu de supprimer complètement
+   * Permet l'anonymisation
+   */
+  @Column(name = "is_actif", nullable = false)
+  @Builder.Default
+  private Boolean actif = true;
+
+  @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+  /**
+   * Art. 17 RGPD - Timestamp de suppression
+   * Enregistrer quand le compte a été supprimé (pour audit trail)
+   * Peut être utilisé pour supprimer définitivement après 30 jours
+   */
+  @Column(name = "deleted_at")
+  private LocalDateTime deletedAt;
+
+  /**
+   * Art. 18 RGPD - Restriction du traitement
+   * Marquer si l'utilisateur a restreint le traitement de ses données
+   * (ex: pas de recommandations IA)
+   */
+  @Column(name = "processing_restricted", nullable = false)
+  @Builder.Default
+  private Boolean processingRestricted = false;
+
+  // ========== MÉTHODES HELPER RGPD ==========
+
+  /**
+   * Anonymiser le profil (Art. 17 RGPD)
+   * Appelée avant la suppression définitive
+   */
+  public void anonymize() {
+    this.prenom = "SUPPRIMÉ";
+    this.nom = "SUPPRIMÉ";
+    this.email = "[SUPPRIMÉ-" + System.currentTimeMillis() + "]";
+    this.motDePasse = "[SUPPRIMÉ]";
+    this.preferenceAlimentaire = null;
+    this.actif = false;
+  }
+
+  /**
+   * Vérifier si l'utilisateur est actif
+   */
+  public boolean isActive() {
+    return this.actif != null && this.actif;
+  }
+
+  /**
+   * Vérifier si le compte a été supprimé
+   */
+  public boolean isDeleted() {
+    return this.deletedAt != null;
+  }
+
+  /**
+   * Vérifier si le traitement est restreint
+   */
+  public boolean hasRestrictedProcessing() {
+    return this.processingRestricted != null && this.processingRestricted;
+  }
+
+  /**
+   * Callback Hibernate - Set created_at automatiquement
+   */
+  @PrePersist
+  protected void onCreate() {
+    createdAt = LocalDateTime.now();
+    updatedAt = LocalDateTime.now();
+  }
+ 
+  /**
+   * Callback Hibernate - Update updated_at automatiquement
+   */
+  @PreUpdate
+  protected void onUpdate() {
+    updatedAt = LocalDateTime.now();
+  }
 
 }

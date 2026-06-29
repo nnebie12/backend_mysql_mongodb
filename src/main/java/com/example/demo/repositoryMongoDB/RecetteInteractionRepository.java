@@ -6,7 +6,6 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 import com.example.demo.entiesMongodb.RecetteInteraction;
 
-@Repository
 public interface RecetteInteractionRepository extends MongoRepository<RecetteInteraction, String> {
     
     List<RecetteInteraction> findByIdUser(Long idUser);

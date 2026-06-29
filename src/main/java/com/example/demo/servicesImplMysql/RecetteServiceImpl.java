@@ -60,36 +60,37 @@ import jakarta.transaction.Transactional;
 	 }
 	
 	 @Override
-	    @Transactional
-	    public RecetteResponseDTO saveRecette(RecetteRequestDTO recetteDTO, Long userEntityId) {
-	        UserEntity userEntity = userRepository.findById(userEntityId)
-	                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé avec l'ID: " + userEntityId));
+	@Transactional
+	public RecetteResponseDTO saveRecette(RecetteRequestDTO recetteDTO, Long userEntityId) {
+		UserEntity userEntity = userRepository.findById(userEntityId)
+				.orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
 
-	        RecetteEntity recetteEntity = new RecetteEntity();
-        recetteMapper.mapRequestDtoToEntity(recetteDTO, recetteEntity);
-        recetteEntity.setUserEntity(userEntity);
-        recetteEntity.setDateCreation(LocalDateTime.now());
+		RecetteEntity recetteEntity = new RecetteEntity();
+		recetteMapper.mapRequestDtoToEntity(recetteDTO, recetteEntity);
+		recetteEntity.setUserEntity(userEntity);
+		recetteEntity.setDateCreation(LocalDateTime.now());
 
-	        RecetteEntity savedRecette = recetteRepository.save(recetteEntity);
+		RecetteEntity savedRecette = recetteRepository.save(recetteEntity);
 
-	        try {
-	            RecetteDetailsDocument recetteDetails = new RecetteDetailsDocument();
-	            recetteDetails.setRecetteId(savedRecette.getId().toString());
-	            recetteDetails.setCommentaires(new ArrayList<>());
-	            recetteDetails.setNotes(new ArrayList<>());
-	            recetteDetails.setMoyenneNotes(0.0);
-	            recetteDetails.setNombreCommentaires(0);
-	            recetteDetails.setNombreNotes(0);
+		// Créer les détails MongoDB...
+		try {
+			RecetteDetailsDocument recetteDetails = new RecetteDetailsDocument();
+			recetteDetails.setRecetteId(savedRecette.getId().toString());
+			recetteDetails.setCommentaires(new ArrayList<>());
+			recetteDetails.setNotes(new ArrayList<>());
+			recetteDetails.setMoyenneNotes(0.0);
+			recetteDetails.setNombreCommentaires(0);
+			recetteDetails.setNombreNotes(0);
 
-	            RecetteDetailsDocument savedDetails = recetteDetailsRepository.save(recetteDetails);
-	            savedRecette.setRecetteMongoId(savedDetails.getId());
-	            recetteRepository.save(savedRecette);
-	        } catch (Exception e) {
-	            logger.error("Erreur MongoDB pour la recette {} : {}", savedRecette.getId(), e.getMessage(), e);
-	        }
+			RecetteDetailsDocument savedDetails = recetteDetailsRepository.save(recetteDetails);
+			savedRecette.setRecetteMongoId(savedDetails.getId());
+			recetteRepository.save(savedRecette);
+		} catch (Exception e) {
+			logger.error("Erreur MongoDB : {}", e.getMessage());
+		}
 
-	        return convertToRecetteResponseDTO(savedRecette);
-	    }
+		return convertToRecetteResponseDTO(savedRecette);
+	}
 	
 	 @Override
 	 public List<RecetteResponseDTO> getAllRecettes() {

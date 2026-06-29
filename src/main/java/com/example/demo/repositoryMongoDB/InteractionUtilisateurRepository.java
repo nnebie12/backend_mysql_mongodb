@@ -7,7 +7,6 @@ import org.springframework.stereotype.Repository;
 
 import com.example.demo.entiesMongodb.InteractionUtilisateur;
 
-@Repository
 public interface InteractionUtilisateurRepository extends MongoRepository<InteractionUtilisateur, String> {
 	
     List<InteractionUtilisateur> findByUserId(Long userId);

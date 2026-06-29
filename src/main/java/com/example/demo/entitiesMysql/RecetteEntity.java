@@ -63,7 +63,7 @@ public class RecetteEntity {
     @Column
     private String difficulte;
     
-    @Column
+    @Column(length = 2048)
     private String imageUrl;
     
     @Column(nullable = false)
@@ -80,6 +80,14 @@ public class RecetteEntity {
     
     @Column(unique = true)
     private String recetteMongoId;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private java.time.LocalDateTime createdAt;
+
+    @jakarta.persistence.PrePersist
+    protected void onCreate() {
+        this.createdAt = java.time.LocalDateTime.now();
+}
 
     public void addIngredientEntity(IngredientEntity ingredient, String quantite) {
         RecetteIngredientEntity ri = new RecetteIngredientEntity();
