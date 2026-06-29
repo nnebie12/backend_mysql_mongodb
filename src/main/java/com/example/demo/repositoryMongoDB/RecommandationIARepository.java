@@ -6,7 +6,6 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 import com.example.demo.entiesMongodb.RecommandationIA;
 
-@Repository
 public interface RecommandationIARepository extends MongoRepository<RecommandationIA, String> {
     
     List<RecommandationIA> findByUserId(Long userId);

@@ -15,7 +15,6 @@ import com.example.demo.entiesMongodb.enums.Saison;
 /**
  * Repository pour la gestion des données de comportement utilisateur en MongoDB
  */
-@Repository
 public interface ComportementUtilisateurRepository extends MongoRepository<ComportementUtilisateur, String> {
     
     /**

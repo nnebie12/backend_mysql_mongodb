@@ -8,7 +8,6 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 import com.example.demo.entiesMongodb.HistoriqueRecherche;
 
-@Repository
 public interface HistoriqueRechercheRepository extends MongoRepository<HistoriqueRecherche, String> {
 
     List<HistoriqueRecherche> findByUserIdOrderByDateRechercheDesc(Long userId);

@@ -8,7 +8,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-@Repository
 public interface PropositionRecommandationRepository extends MongoRepository<PropositionRecommandation, String> {
 
     List<PropositionRecommandation> findByIdUser(Long idUser);
