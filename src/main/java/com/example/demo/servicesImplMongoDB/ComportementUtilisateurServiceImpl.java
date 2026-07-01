@@ -30,9 +30,9 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
     
     private static final int MAX_HISTORIQUE_RECHERCHES = 500;
     private static final int MAX_HISTORIQUE_INTERACTIONS = 1000;
-    private static final double SCORE_ENGAGEMENT_FIDELE = 70.0;
-    private static final double SCORE_ENGAGEMENT_ACTIF = 40.0;
-    private static final double SCORE_ENGAGEMENT_OCCASIONNEL = 15.0;
+    private static final double SCORE_ENGAGEMENT_FIDELE = 6.0;
+    private static final double SCORE_ENGAGEMENT_ACTIF = 4.0;
+    private static final double SCORE_ENGAGEMENT_OCCASIONNEL = 2.0;
     private static final long SESSION_INACTIVITY_THRESHOLD_MINUTES = 30; // Seuil pour définir une session
 
     public ComportementUtilisateurServiceImpl(ComportementUtilisateurRepository comportementUtilisateurRepository,
@@ -162,7 +162,8 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
         metriques.setTauxRecherchesFructueuses(tauxFructueuses);
 
         metriques.setScoreEngagement(calculerScoreEngagement(interactions, recherches));
-        metriques.setProfilUtilisateur(determinerProfilUtilisateur(metriques.getScoreEngagement())); 
+        metriques.setProfilUtilisateur(determinerProfilUtilisateur(
+        metriques.getScoreEngagement(), interactions.size(), recherches.size()));
 
         Map<String, Integer> frequences = new HashMap<>();
         interactions.forEach(interaction -> {
@@ -289,7 +290,8 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
         List<InteractionUtilisateur> interactions = interactionService.getInteractionsByUserId(userId);
         List<HistoriqueRecherche> recherches = historiqueRechercheService.getHistoryByUserId(userId);
         metriques.setScoreEngagement(calculerScoreEngagement(interactions, recherches));
-        metriques.setProfilUtilisateur(determinerProfilUtilisateur(metriques.getScoreEngagement())); 
+        metriques.setProfilUtilisateur(determinerProfilUtilisateur(
+        metriques.getScoreEngagement(), interactions.size(), recherches.size()));   
 
         comportement.setMetriques(metriques);
 
@@ -346,13 +348,14 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
         return Math.min(100.0, score);
     }
 
-    private ProfilUtilisateur determinerProfilUtilisateur(Double scoreEngagement) { 
-        if (scoreEngagement == null) return ProfilUtilisateur.NOUVEAU;
-
-        if (scoreEngagement > SCORE_ENGAGEMENT_FIDELE) return ProfilUtilisateur.FIDELE;
-        else if (scoreEngagement > SCORE_ENGAGEMENT_ACTIF) return ProfilUtilisateur.ACTIF;
-        else if (scoreEngagement > SCORE_ENGAGEMENT_OCCASIONNEL) return ProfilUtilisateur.OCCASIONNEL;
-        else return ProfilUtilisateur.DEBUTANT;
+    private ProfilUtilisateur determinerProfilUtilisateur(Double scoreEngagement, int nbInteractions, int nbRecherches) {
+    if (scoreEngagement == null || (nbInteractions == 0 && nbRecherches == 0)) {
+        return ProfilUtilisateur.NOUVEAU;
+    }
+    if (scoreEngagement > SCORE_ENGAGEMENT_FIDELE) return ProfilUtilisateur.FIDELE;
+    else if (scoreEngagement > SCORE_ENGAGEMENT_ACTIF) return ProfilUtilisateur.ACTIF;
+    else if (scoreEngagement > SCORE_ENGAGEMENT_OCCASIONNEL) return ProfilUtilisateur.OCCASIONNEL;
+    else return ProfilUtilisateur.DEBUTANT;
     }
 
     @Override
@@ -524,7 +527,8 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
                                 entry -> entry.getValue().intValue() 
                         ));
                 cyclesActivite.setActiviteParJour(activiteParJourStringInteger);
-                cyclesActivite.setCreneauLePlusActif((String) patternsTemporels.get("heurePicActivite")); 
+                Object heurePicObj = patternsTemporels.get("heurePicActivite");
+                cyclesActivite.setCreneauLePlusActif(heurePicObj != null ? String.valueOf(heurePicObj) : null);
                 cyclesActivite.setJoursActifs(activiteParJourStringInteger.keySet().stream().collect(Collectors.toList())); 
             } else {
                 cyclesActivite.setActiviteParJour(new HashMap<>());
@@ -574,7 +578,8 @@ public class ComportementUtilisateurServiceImpl implements ComportementUtilisate
             // 4. Score d'engagement et profil utilisateur (mis à jour dans Metriques)
             double scoreEngagement = calculerScoreEngagement(interactions, recherches);
             metriques.setScoreEngagement(scoreEngagement);
-            metriques.setProfilUtilisateur(determinerProfilUtilisateur(scoreEngagement));
+            metriques.setProfilUtilisateur(determinerProfilUtilisateur(
+            scoreEngagement, interactions.size(), recherches.size()));
 
             // 5. Score de prédictibilité (mis à jour dans Metriques ou un nouveau champ)
             Double scorePredictibilite = calculerScorePredictibiliteSimplifiee(interactions, recherches);

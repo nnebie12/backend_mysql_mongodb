@@ -1,0 +1,42 @@
+[
+  {
+    "profil": "NOUVEAU",
+    "nom": "Demo",
+    "prenom": "Nouveau",
+    "email": "demo.nouveau.907214@test.com",
+    "motDePasse": "DemoPass123!",
+    "id": 2047
+  },
+  {
+    "profil": "DEBUTANT",
+    "nom": "Demo",
+    "prenom": "Debutant",
+    "email": "demo.debutant.907214@test.com",
+    "motDePasse": "DemoPass123!",
+    "id": 2048
+  },
+  {
+    "profil": "OCCASIONNEL",
+    "nom": "Demo",
+    "prenom": "Occasionnel",
+    "email": "demo.occasionnel.907214@test.com",
+    "motDePasse": "DemoPass123!",
+    "id": 2049
+  },
+  {
+    "profil": "ACTIF",
+    "nom": "Demo",
+    "prenom": "Actif",
+    "email": "demo.actif.907214@test.com",
+    "motDePasse": "DemoPass123!",
+    "id": 2050
+  },
+  {
+    "profil": "FIDELE",
+    "nom": "Demo",
+    "prenom": "Fidele",
+    "email": "demo.fidele.907214@test.com",
+    "motDePasse": "DemoPass123!",
+    "id": 2051
+  }
+]

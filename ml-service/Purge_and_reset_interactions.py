@@ -1,26 +1,23 @@
 """
 =============================================================================
-  SCRIPT 0 — PURGE & RESET DES INTERACTIONS (à lancer EN PREMIER)
+  SCRIPT 0 (v2) — PURGE & RESET DES INTERACTIONS (endpoint utilisateurs corrigé)
   ─────────────────────────────────────────────────────────────────────────
-  Contexte : la base contient 87 961+ interactions accumulées par
-             d'anciens scripts (generate_all_data.py, generate_behavior.py
-             exécutés avant ce nettoyage). La cible du dossier PFE est
-             18 670. Ce script vide la collection MongoDB `interactions`
-             puis regénère exactement 18 670 entrées propres.
+  CORRECTIF v2 : la v1 utilisait GET /api/v1/users pour charger la liste
+  des utilisateurs, mais cet endpoint exige hasRole('ADMIN') strictement
+  (cf. commentaire dans Generate_nested_comments.py : le compte admin a le
+  rôle ADMINISTRATEUR, pas ADMIN — Role.java ne définit même pas de valeur
+  ADMIN). Résultat : /users renvoie systématiquement 403, et le script
+  retombait sur un fallback arbitraire (plage 1173–2041, 869 IDs) qui ne
+  correspond PAS exactement aux 797 vrais utilisateurs. Une partie des
+  interactions générées visait donc des userId inexistants, diluant
+  fortement le volume réel par utilisateur — ce qui explique un score
+  d'engagement anormalement bas après recalcul (99% DEBUTANT malgré
+  18 670 interactions "générées").
 
-  ⚠️  DESTRUCTIF : supprime TOUTES les interactions existantes.
-      Une confirmation explicite est demandée avant suppression.
-      Faites un mongodump avant si vous n'êtes pas sûr.
-
-  Méthode de purge : deux options selon ce qui est accessible :
-    A. Suppression directe via pymongo (rapide, recommandé si Mongo
-       est accessible en local sans authentification complexe)
-    B. Suppression via l'API, utilisateur par utilisateur, en
-       utilisant DELETE /api/v1/interactions/user/{userId}
-       (plus lent, mais ne nécessite que l'API Spring Boot)
-
-  Ce script essaie A en premier, et bascule automatiquement sur B
-  si pymongo n'est pas installé ou si la connexion échoue.
+  Ce script utilise désormais GET /api/administrateur/users (protégé par
+  hasAnyRole('ADMIN', 'ADMINISTRATEUR'), qui accepte le rôle réel du
+  compte), exactement comme recalculer_profils.py — garantissant que
+  toutes les interactions ciblent bien les 797 vrais comptes.
 
   Prérequis : Spring Boot sur http://localhost:8080
 =============================================================================
@@ -35,17 +32,15 @@ from collections import defaultdict
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────
 API_BASE            = "http://localhost:8080/api/v1"
+ADMIN_API_BASE       = "http://localhost:8080/api/administrateur"
 ADMIN_EMAIL         = "dianekassi@admin.com"
 ADMIN_PASSWORD      = "Mydayana48"
 TARGET_INTERACTIONS = 18_670
-CSV_FILE            = "recettes_clean.csv"  # ⚠️ non utilisé depuis le correctif :
-                                              #    les IDs viennent maintenant de l'API
 DELAY               = 0.03
 
-# Connexion Mongo directe (option A) — adaptez si besoin
-MONGO_URI       = "mongodb://localhost:27017"   # ⚠️ adaptez si Mongo Atlas / auth
-MONGO_DB        = "ProjetRecette"
-MONGO_COLLECTION = "interactionUtilisateur"      # nom de la collection Spring Data (vérifiez le @Document)
+MONGO_URI        = "mongodb://localhost:27017"
+MONGO_DB         = "ProjetRecette"
+MONGO_COLLECTION = "interactionUtilisateur"
 
 INTERACTION_DISTRIBUTION = [
     ("CONSULTATION",   0.60),
@@ -60,13 +55,6 @@ def confirm(message: str) -> bool:
     return rep == "CONFIRMER"
 
 
-def random_past_date(days_back=180) -> str:
-    raw   = random.expovariate(0.015)
-    days  = min(int(raw), days_back)
-    delta = timedelta(days=days, hours=random.randint(0, 23), minutes=random.randint(0, 59))
-    return (datetime.now(timezone.utc) - delta).isoformat()
-
-
 def pick_interaction_type() -> str:
     rand, cumul = random.random(), 0.0
     for itype, prob in INTERACTION_DISTRIBUTION:
@@ -76,7 +64,6 @@ def pick_interaction_type() -> str:
     return "CONSULTATION"
 
 
-# ─── PURGE OPTION A — pymongo direct ───────────────────────────────────────
 def purge_via_pymongo() -> bool:
     try:
         from pymongo import MongoClient
@@ -86,13 +73,11 @@ def purge_via_pymongo() -> bool:
 
     try:
         client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=3000)
-        client.server_info()  # force la connexion pour vérifier qu'elle marche
+        client.server_info()
         db = client[MONGO_DB]
 
-        # Découverte du nom réel de la collection si besoin
         existing_collections = db.list_collection_names()
-        candidates = [c for c in existing_collections
-                      if "interaction" in c.lower()]
+        candidates = [c for c in existing_collections if "interaction" in c.lower()]
         print(f"📂 Collections trouvées contenant 'interaction' : {candidates}")
 
         target_coll = MONGO_COLLECTION if MONGO_COLLECTION in existing_collections \
@@ -119,7 +104,6 @@ def purge_via_pymongo() -> bool:
         return False
 
 
-# ─── PURGE OPTION B — via API, user par user ───────────────────────────────
 class ApiPurger:
     def __init__(self):
         self.sess = requests.Session()
@@ -142,7 +126,6 @@ class ApiPurger:
         return False
 
     def get_all_user_ids_with_interactions(self) -> list:
-        """Récupère tous les userId distincts ayant des interactions."""
         try:
             r = self.sess.get(f"{API_BASE}/interactions/all", timeout=60)
             if r.status_code == 200:
@@ -181,7 +164,6 @@ class ApiPurger:
         return True
 
 
-# ─── REGÉNÉRATION PROPRE ────────────────────────────────────────────────────
 class CleanRegenerator:
     def __init__(self, sess: requests.Session):
         self.sess       = sess
@@ -190,16 +172,6 @@ class CleanRegenerator:
         self.stats      = defaultdict(int)
 
     def load_data(self):
-        """
-        CORRECTIF : on charge désormais les IDs de recettes directement
-        depuis l'API (/recettes/all), qui est la source de vérité.
-        Le CSV recettes_clean.csv n'a PAS de colonne 'id' (c'est un export
-        brut de scraping Marmiton, antérieur à l'insertion en base) —
-        confirmé par diagnostic.py. On ne s'appuie donc plus sur un CSV
-        pour les IDs, ce qui élimine ce problème définitivement, quel que
-        soit le fichier CSV présent dans le dossier (recettes_clean.csv,
-        recipe_features_cleaned.csv, ou autre).
-        """
         try:
             r = self.sess.get(f"{API_BASE}/recettes/all", timeout=30)
             if r.status_code == 200:
@@ -213,29 +185,32 @@ class CleanRegenerator:
             print("❌ Aucune recette récupérée via l'API. Impossible de continuer")
             print("   sans IDs valides — vérifiez que GET /recettes/all répond.")
 
+        # ─────────────────────────────────────────────────────────────
+        # ✅ CORRECTIF v2 : /api/v1/users exige hasRole('ADMIN') que ce
+        # compte n'a pas (il a ADMINISTRATEUR). On utilise directement
+        # /api/administrateur/users, qui accepte hasAnyRole('ADMIN',
+        # 'ADMINISTRATEUR') — le MÊME endpoint que recalculer_profils.py,
+        # garantissant que les deux scripts ciblent EXACTEMENT la même
+        # liste de 797 vrais utilisateurs, sans fallback approximatif.
+        # ─────────────────────────────────────────────────────────────
         try:
-            r = self.sess.get(f"{API_BASE}/users", timeout=15)
+            r = self.sess.get(f"{ADMIN_API_BASE}/users", timeout=15)
             if r.status_code == 200:
-                self.user_ids = [int(u["id"]) for u in r.json() if u.get("id")]
-                print(f"👥 {len(self.user_ids)} utilisateurs chargés depuis l'API")
-        except Exception:
-            pass
+                data = r.json()
+                self.user_ids = [int(u["id"]) for u in data if u.get("id")]
+                print(f"👥 {len(self.user_ids)} utilisateurs réels chargés "
+                      f"depuis /api/administrateur/users")
+            else:
+                print(f"⚠️  GET /api/administrateur/users → HTTP {r.status_code}")
+        except Exception as e:
+            print(f"⚠️  Erreur chargement utilisateurs : {e}")
 
         if not self.user_ids:
-            print("⚠️  Fallback : plage utilisateurs 1173–2041")
-            self.user_ids = list(range(1173, 2042))
+            print("❌ Impossible de charger la vraie liste d'utilisateurs.")
+            print("   Arrêt plutôt que d'utiliser un fallback approximatif")
+            print("   qui fausserait les statistiques (cf. bug précédent).")
 
     def post_interaction(self, user_id: int, recipe_id: int, itype: str) -> bool:
-        """
-        CORRECTIF : le contrôleur Spring (InteractionUtilisateurController)
-        attend un paramètre nommé EXACTEMENT 'recetteId', pas 'entiteId'.
-        Confirmé par la stack trace serveur :
-          MissingServletRequestParameterException: Required request
-          parameter 'recetteId' for method parameter type Long is not present
-        L'ancien code envoyait 'entiteId' → Spring renvoyait une erreur
-        (mal traduite en 500 par le GlobalExceptionHandler générique au
-        lieu d'un 400), et toutes les requêtes échouaient silencieusement.
-        """
         params = {"userId": user_id, "typeInteraction": itype, "recetteId": recipe_id}
         if itype == "CONSULTATION":
             params["dureeConsultation"] = random.randint(15, 420)
@@ -251,10 +226,11 @@ class CleanRegenerator:
 
         if not self.recipe_ids:
             print("❌ Impossible de régénérer : aucune recette disponible.")
-            print("   load_data() n'a pas réussi à charger d'IDs via l'API.")
             return
         if not self.user_ids:
-            print("❌ Impossible de régénérer : aucun utilisateur disponible.")
+            print("❌ Impossible de régénérer : aucun utilisateur réel disponible.")
+            print("   (Le script s'arrête plutôt que d'utiliser une plage")
+            print("    arbitraire qui polluerait les statistiques.)")
             return
 
         n_pop = max(5, len(self.recipe_ids) // 10)
@@ -276,24 +252,24 @@ class CleanRegenerator:
                 print(f"  [{i+1:,}/{target:,}] {pct:.1f}% — générées : {generated:,}", end="\r")
 
         print(f"\n\n✅ {generated:,} interactions générées proprement.")
+        print(f"   Réparties sur {len(self.user_ids)} vrais utilisateurs "
+              f"→ moyenne {generated / len(self.user_ids):.1f} interactions/utilisateur")
         print("Répartition :")
         for k, v in self.stats.items():
             pct = v / generated * 100 if generated else 0
             print(f"   • {k:<20} → {v:>6,}  ({pct:.1f}%)")
 
 
-# ─── ORCHESTRATION ──────────────────────────────────────────────────────────
 def main():
     print("\n" + "═" * 65)
-    print("  🧹  PURGE & RESET DES INTERACTIONS")
+    print("  🧹  PURGE & RESET DES INTERACTIONS (v2 — endpoint utilisateurs corrigé)")
     print("═" * 65)
     print(f"""
-  Cible finale : {TARGET_INTERACTIONS:,} interactions propres
+  Cible finale : {TARGET_INTERACTIONS:,} interactions propres,
+  réparties sur les VRAIS utilisateurs (via /api/administrateur/users).
 
   ⚠️  Ce script va SUPPRIMER toutes les interactions existantes
       puis en regénérer {TARGET_INTERACTIONS:,} depuis zéro.
-
-  Une confirmation explicite sera demandée avant toute suppression.
 """)
 
     purger = ApiPurger()
@@ -301,7 +277,6 @@ def main():
         print("❌ Connexion impossible. Arrêt.")
         sys.exit(1)
 
-    # Tentative purge directe Mongo, sinon fallback API
     print("\n── Étape 1/2 : Purge ──")
     purged = purge_via_pymongo()
     if not purged:
@@ -312,7 +287,6 @@ def main():
         print("\n⏹️  Purge non effectuée. Arrêt (rien n'a été régénéré).")
         sys.exit(1)
 
-    # Vérification post-purge
     remaining = purger.get_all_user_ids_with_interactions()
     if remaining:
         print(f"\n⚠️  Attention : il reste des interactions sur {len(remaining)} utilisateurs.")
@@ -329,7 +303,8 @@ def main():
     print("\n" + "═" * 65)
     print("  🏁  PURGE + RESET TERMINÉS")
     print("═" * 65)
-    print(f"\n  Relancez verify_coherence_final.py pour confirmer le total exact.")
+    print(f"\n  👉 Lancez maintenant recalculer_profils.py pour recalculer")
+    print(f"     les profils RFM sur cette nouvelle distribution.\n")
 
 
 if __name__ == "__main__":

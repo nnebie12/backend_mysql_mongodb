@@ -80,10 +80,11 @@ class BehaviorDataGenerator:
                 print(f"➔ Progression : Utilisateur {user_id} terminé.")
 
     def _record_interaction(self, u_id, r_id, action):
+        
         params = {
             'userId': u_id,
             'typeInteraction': action,
-            'entiteId': r_id,
+            'recetteId': r_id,
             'dureeConsultation': random.randint(10, 300) if action == 'CONSULTATION' else None
         }
         return self._post_to_api("/interactions", params=params)
@@ -117,5 +118,5 @@ if __name__ == "__main__":
     if gen.login('dianekassi@admin.com', 'Mydayana48'):
         gen.load_local_data('recettes_clean.csv')
         print("\n🚀 Démarrage de la génération de données...")
-        gen.generate_behavior(2001, 2030, interactions_per_user=15)
+        gen.generate_behavior(2047, 2051, interactions_per_user=15)
         print("\n✨ Simulation terminée.")

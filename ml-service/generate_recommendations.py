@@ -30,8 +30,8 @@ API_BASE        = "http://localhost:8080/api/v1"
 ML_SERVICE_BASE = "http://localhost:8000"        # FastAPI ml_service.py
 CSV_FILE        = "recettes_clean.csv"
 
-USER_START      = 1173
-USER_END        = 2041
+USER_START      = 2047
+USER_END        = 2051
 
 N_RECOMMENDATIONS   = 10   # nombre de reco à produire par utilisateur
 MIN_INTERACTIONS    = 3    # seuil pour activer le filtrage collaboratif
@@ -290,8 +290,10 @@ class RecommendationEngine:
     ) -> List[Dict]:
         """
         Stratégie hybride par niveau d'activité :
-          ACTIF/FIDELE  → 50 % collaboratif + 30 % sémantique + 20 % tendances
+          FIDELE        → 60 % collaboratif + 30 % sémantique + 10 % tendances
+          ACTIF         → 50 % collaboratif + 30 % sémantique + 20 % tendances
           OCCASIONNEL   → 30 % collaboratif + 30 % sémantique + 40 % tendances
+          DEBUTANT      →  0 % collaboratif + 30 % sémantique + 70 % tendances
           NOUVEAU       → 100 % tendances (cold-start)
         """
         user_inters = [i for i in all_interactions if int(i.get("userId", -1)) == user_id]
@@ -313,7 +315,12 @@ class RecommendationEngine:
 
         # ── Filtrage collaboratif ──
         if len(user_inters) >= MIN_INTERACTIONS and profil not in ("NOUVEAU", "DEBUTANT"):
-            n_collab   = int(n * 0.5) if profil in ("ACTIF", "FIDELE") else int(n * 0.3)
+            if profil == "FIDELE":
+                n_collab = int(n * 0.6)
+            elif profil == "ACTIF":
+                n_collab = int(n * 0.5)
+            else:  # OCCASIONNEL
+                n_collab = int(n * 0.3)
             collab_ids = self._collaborative_recs(user_id, user_inters, all_interactions, n_collab)
 
         # ── Sémantique ──

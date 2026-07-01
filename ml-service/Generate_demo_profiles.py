@@ -1,30 +1,41 @@
 """
 =============================================================================
-  GÉNÉRATEUR DE PROFILS DE DÉMO — 3 profils ciblés pour la soutenance
+  GÉNÉRATEUR DE PROFILS DE DÉMO — 5 profils ciblés pour la soutenance
   ─────────────────────────────────────────────────────────────────────────
-  Objectif : créer 3 utilisateurs de test avec des profils RFM distincts
-             prêts à démontrer pendant la soutenance (min 10-15).
+  Objectif : créer 5 utilisateurs de test couvrant les 5 profils RFM réels
+             de l'enum ProfilUtilisateur, prêts à démontrer pendant la
+             soutenance.
 
-  Profil 1 — NOUVEAU (ID à renseigner)
-    • 0 interaction → profil reste NOUVEAU
+  Seuils actuels (ComportementUtilisateurServiceImpl.java, recalibrés) :
+    SCORE_ENGAGEMENT_FIDELE      = 6.0
+    SCORE_ENGAGEMENT_ACTIF       = 4.0
+    SCORE_ENGAGEMENT_OCCASIONNEL = 2.0
+    scoreEngagement = interactions.size() * 0.1 + recherches.size() * 0.05
+                      + recherchesFructueuses * 0.1
+
+  Profil 1 — NOUVEAU
+    • 0 interaction → reste NOUVEAU (condition nbInteractions==0 && nbRecherches==0)
     • recommandations = 100% popularité (fallback cold start)
-    • Score pertinence bas (~0.45–0.55)
 
-  Profil 2 — ACTIF (ID à renseigner)
-    • 40–60 interactions réparties (40% note, 30% favori, 30% consultation)
-    • Score RFM : 70–100 → profil ACTIF
-    • recommandations = 50% collaboratif + 30% sémantique + 20% popularité
-    • Score pertinence moyen (~0.60–0.65)
+  Profil 2 — DEBUTANT
+    • 10 interactions → score ≈ 1.0 (sous le seuil OCCASIONNEL de 2.0)
 
-  Profil 3 — FIDÈLE (ID à renseigner)
-    • 120+ interactions (30% note, 30% favori, 40% consultation)
-    • Score RFM : >100 → profil FIDÈLE
-    • recommandations = 60% collaboratif + 30% sémantique + 10% popularité
-    • Score pertinence bon (~0.65–0.75)
+  Profil 3 — OCCASIONNEL
+    • 30 interactions → score ≈ 3.0 (entre 2.0 et 4.0)
+
+  Profil 4 — ACTIF
+    • 50 interactions → score ≈ 5.0 (entre 4.0 et 6.0)
+
+  Profil 5 — FIDÈLE
+    • 80 interactions → score ≈ 8.0 (au-dessus de 6.0)
+
+  ⚠️  Utilise le paramètre 'recetteId' (pas 'entiteId') pour /interactions —
+  confirmé par test curl : entiteId → HTTP 500/null silencieux,
+  recetteId → HTTP 201 avec la bonne valeur persistée.
 
   Prérequis :
     - Spring Boot sur http://localhost:8080
-    - IDs des 3 users à renseigner ci-dessous (ou auto-détection via /users)
+    - IDs des 5 users à renseigner ci-dessous (via 5× /auth/register)
 =============================================================================
 """
 
@@ -32,7 +43,6 @@ import random
 import time
 import requests
 import pandas as pd
-from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 
 # ─── CONFIG À PERSONNALISER ───────────────────────────────────────────────
@@ -41,34 +51,62 @@ ADMIN_EMAIL       = "dianekassi@admin.com"
 ADMIN_PASSWORD    = "Mydayana48"
 DELAY             = 0.05
 
-# ⚠️ À RENSEIGNER : les 3 IDs de vos utilisateurs de test
-# Remplacez par les vrais IDs reçus lors du /auth/register des 3 users
-USER_NOUVEAU = None  # ex: 2050
-USER_ACTIF   = None  # ex: 2051
-USER_FIDELE  = None  # ex: 2052
+# ⚠️ À RENSEIGNER : les 5 IDs de vos utilisateurs de test
+# Remplacez par les vrais IDs reçus lors du /auth/register des 5 users
+USER_NOUVEAU     = 2047  # ex: 2050
+USER_DEBUTANT    = 2048  # ex: 2051
+USER_OCCASIONNEL = 2049  # ex: 2052
+USER_ACTIF       = 2050  # ex: 2053
+USER_FIDELE      = 2051  # ex: 2054
 
 CSV_FILE = "recipe_features_cleaned.csv"
 
 # ─── CONFIG PROFILS ────────────────────────────────────────────────────────
+# Nombre d'interactions calibré pour retomber confortablement dans la
+# tranche de score visée, avec de la marge par rapport aux seuils exacts
+# (2.0 / 4.0 / 6.0) pour absorber la variabilité des types d'interaction
+# choisis aléatoirement (recherches non générées ici, donc score ≈
+# interactions * 0.1 pur).
 PROFIL_CONFIG = {
     "NOUVEAU": {
-        "interactions": 0,          # Aucune interaction
+        "interactions": 0,           # Aucune interaction → score 0, NOUVEAU
         "note_prob": 0.0,
         "favori_prob": 0.0,
         "consultation_prob": 0.0,
     },
+    "DEBUTANT": {
+        "interactions": 10,          # score ≈ 1.0  (seuil OCCASIONNEL = 2.0)
+        "note_prob": 0.30,
+        "favori_prob": 0.20,
+        "consultation_prob": 0.50,
+    },
+    "OCCASIONNEL": {
+        "interactions": 30,          # score ≈ 3.0  (entre 2.0 et 4.0)
+        "note_prob": 0.35,
+        "favori_prob": 0.25,
+        "consultation_prob": 0.40,
+    },
     "ACTIF": {
-        "interactions": 50,         # 40–60 interactions
+        "interactions": 50,          # score ≈ 5.0  (entre 4.0 et 6.0)
         "note_prob": 0.40,
         "favori_prob": 0.30,
         "consultation_prob": 0.30,
     },
     "FIDELE": {
-        "interactions": 140,        # 130–150 interactions
+        "interactions": 80,          # score ≈ 8.0  (au-dessus de 6.0)
         "note_prob": 0.30,
         "favori_prob": 0.30,
         "consultation_prob": 0.40,
     },
+}
+
+# Mapping profil → variable d'ID (pour boucler proprement dans run())
+PROFIL_USER_IDS = {
+    "NOUVEAU":     lambda: USER_NOUVEAU,
+    "DEBUTANT":    lambda: USER_DEBUTANT,
+    "OCCASIONNEL": lambda: USER_OCCASIONNEL,
+    "ACTIF":       lambda: USER_ACTIF,
+    "FIDELE":      lambda: USER_FIDELE,
 }
 
 COMMENT_POOL = [
@@ -88,9 +126,9 @@ COMMENT_POOL = [
 class DemoProfileGenerator:
 
     def __init__(self):
-        self.sess      = requests.Session()
+        self.sess       = requests.Session()
         self.recipe_ids = []
-        self.stats     = defaultdict(lambda: defaultdict(int))
+        self.stats      = defaultdict(lambda: defaultdict(int))
 
     def login(self) -> bool:
         try:
@@ -119,16 +157,26 @@ class DemoProfileGenerator:
             return True
         except Exception as e:
             print(f"⚠️  CSV : {e}")
+            print("   Tentative via l'API /recettes/all...\n")
+            try:
+                r = self.sess.get(f"{API_BASE}/recettes/all", timeout=30)
+                if r.status_code == 200:
+                    self.recipe_ids = [rec["id"] for rec in r.json() if rec.get("id")]
+                    print(f"📖 {len(self.recipe_ids)} recettes chargées depuis l'API\n")
+                    return True
+            except Exception:
+                pass
             print("   Fallback : IDs 1–200\n")
             self.recipe_ids = list(range(1, 201))
             return False
 
     def post_interaction(self, user_id: int, recipe_id: int, itype: str,
                          duree: int = None) -> bool:
+        # ⚠️ Le contrôleur attend 'recetteId', pas 'entiteId'.
         params = {
             "userId":          user_id,
             "typeInteraction": itype,
-            "entiteId":        recipe_id,
+            "recetteId":       recipe_id,
         }
         if itype == "CONSULTATION" and duree:
             params["dureeConsultation"] = duree
@@ -173,14 +221,12 @@ class DemoProfileGenerator:
             recipe_id = random.choice(self.recipe_ids)
             rand = random.random()
 
-            # Choix du type selon probabilités du profil
             if rand < config["note_prob"]:
                 note = random.choices([5, 4, 3], weights=[50, 30, 20])[0]
                 if self.post_note(user_id, recipe_id, note):
                     posted += 1
                 else:
                     errors += 1
-                # L'API enregistre aussi une NOTE_POSEE dans interactions
             elif rand < config["note_prob"] + config["favori_prob"]:
                 if self.post_interaction(user_id, recipe_id, "FAVORI_AJOUTE"):
                     posted += 1
@@ -203,60 +249,58 @@ class DemoProfileGenerator:
 
     def run(self):
         print("\n" + "=" * 70)
-        print("  🎯  GÉNÉRATEUR DE PROFILS DE DÉMO (3 utilisateurs testés)")
+        print("  🎯  GÉNÉRATEUR DE PROFILS DE DÉMO (5 profils RFM complets)")
         print("=" * 70)
 
-        # Vérifier que les IDs sont renseignés
-        if not all([USER_NOUVEAU, USER_ACTIF, USER_FIDELE]):
-            print("\n❌ ERREUR : Renseignez les 3 IDs au début du script :")
-            print(f"   USER_NOUVEAU = {USER_NOUVEAU}")
-            print(f"   USER_ACTIF   = {USER_ACTIF}")
-            print(f"   USER_FIDELE  = {USER_FIDELE}")
-            print("\n   Exécutez d'abord 3× /auth/register pour créer les users,")
+        ids_by_profil = {p: getter() for p, getter in PROFIL_USER_IDS.items()}
+
+        if not all(ids_by_profil.values()):
+            print("\n❌ ERREUR : Renseignez les 5 IDs au début du script :")
+            for profil, uid in ids_by_profil.items():
+                print(f"   USER_{profil:<12} = {uid}")
+            print("\n   Exécutez d'abord 5× /auth/register pour créer les users,")
             print("   puis notez les IDs reçus.\n")
             return
 
         print("\n📋 Configuration :")
-        print(f"   • NOUVEAU (ID {USER_NOUVEAU})  → 0 interaction")
-        print(f"   • ACTIF   (ID {USER_ACTIF})  → 50 interactions")
-        print(f"   • FIDÈLE  (ID {USER_FIDELE}) → 140 interactions\n")
+        for profil, uid in ids_by_profil.items():
+            n = PROFIL_CONFIG[profil]["interactions"]
+            print(f"   • {profil:<12} (ID {uid}) → {n} interaction(s)")
+        print()
 
         self.load_recipes()
 
         total_posted = 0
         total_errors = 0
 
-        print("🚀 Génération des 3 profils :\n")
+        print("🚀 Génération des 5 profils :\n")
 
-        p1, e1 = self.generate_profile(USER_NOUVEAU, "NOUVEAU")
-        total_posted += p1
-        total_errors += e1
-
-        p2, e2 = self.generate_profile(USER_ACTIF, "ACTIF")
-        total_posted += p2
-        total_errors += e2
-
-        p3, e3 = self.generate_profile(USER_FIDELE, "FIDELE")
-        total_posted += p3
-        total_errors += e3
+        for profil, uid in ids_by_profil.items():
+            p, e = self.generate_profile(uid, profil)
+            total_posted += p
+            total_errors += e
 
         print("\n" + "=" * 70)
         print("✅ Génération terminée")
         print(f"   Total d'interactions générées : {total_posted}")
         print(f"   Total d'erreurs : {total_errors}")
-        print("\n⏱️  Attendez 2–3 minutes (le backend recalcule les profils RFM)")
+        print("\n⏱️  Le profil RFM stocké en base ne se met PAS à jour tout seul.")
+        print("   Pour chacun des 5 comptes, déclenchez le recalcul via :")
+        print("   POST /api/v1/comportement-utilisateur/user/{id}/analyser")
+        print("   (ou relancez recalculer_profils.py sur l'ensemble des utilisateurs)")
         print("   Puis vérifiez via le dashboard admin → onglet 'Utilisateurs'\n")
-        print("🎬 Durant la démo, montrez chacun des 3 profils :")
-        print(f"   1. NOUVEAU (ID {USER_NOUVEAU})  : reco 100% popularité, score ~0.50")
-        print(f"   2. ACTIF   (ID {USER_ACTIF})  : reco 50% collab, score ~0.63")
-        print(f"   3. FIDÈLE  (ID {USER_FIDELE}) : reco 60% collab, score ~0.68\n")
+        print("🎬 Durant la démo, montrez chacun des 5 profils :")
+        for profil, uid in ids_by_profil.items():
+            print(f"   • {profil:<12} (ID {uid})")
+        print()
 
 
 if __name__ == "__main__":
     print("\n⚠️  AVANT DE LANCER CE SCRIPT :")
-    print("   1. Créez 3 utilisateurs via /auth/register")
+    print("   1. Créez 5 utilisateurs via /auth/register")
     print("   2. Notez leurs IDs")
-    print("   3. Renseignez USER_NOUVEAU, USER_ACTIF, USER_FIDELE au début du code\n")
+    print("   3. Renseignez USER_NOUVEAU, USER_DEBUTANT, USER_OCCASIONNEL,")
+    print("      USER_ACTIF, USER_FIDELE au début du code\n")
 
     gen = DemoProfileGenerator()
     if not gen.login():
