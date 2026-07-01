@@ -189,78 +189,64 @@ public class ComportementUtilisateurController {
     }
 
     @GetMapping("/stats/rfm")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ADMINISTRATEUR')")
-    public ResponseEntity<Map<String, Integer>> getStatsRFM() {
-        try {
-            logger.info("Calcul des stats RFM");
-            
-            List<ComportementUtilisateur> tousUtilisateurs = comportementService.getEngagedUsers(0.0);
-            
-            logger.info("Nombre total d'utilisateurs: {}", tousUtilisateurs.size());
-            
-            int champions = 0, fideles = 0, risque = 0, nouveaux = 0;
-            
-            for (ComportementUtilisateur comp : tousUtilisateurs) {
-                if (comp.getMetriques() == null || comp.getMetriques().getProfilUtilisateur() == null) {
-                    nouveaux++;
-                    continue;
-                }
-                
-                switch (comp.getMetriques().getProfilUtilisateur()) {
-                    case FIDELE:
-                        Double scoreEngagement = comp.getMetriques().getScoreEngagement();
-                        if (scoreEngagement != null && scoreEngagement > 80) {
-                            champions++;
-                        } else {
-                            fideles++;
-                        }
-                        break;
-                    case ACTIF:
-                        fideles++;
-                        break;
-                    case OCCASIONNEL:
-                    case DEBUTANT:
-                        risque++;
-                        break;
-                    case NOUVEAU:
-                    default:
-                        nouveaux++;
-                }
+@PreAuthorize("hasAnyRole('ADMIN', 'ADMINISTRATEUR')")
+public ResponseEntity<Map<String, Integer>> getStatsRFM() {
+    try {
+        logger.info("Calcul des stats RFM");
+
+        List<ComportementUtilisateur> tousUtilisateurs = comportementService.getEngagedUsers(0.0);
+
+        logger.info("Nombre total d'utilisateurs: {}", tousUtilisateurs.size());
+
+        int nouveau = 0, debutant = 0, occasionnel = 0, actif = 0, fidele = 0;
+
+        for (ComportementUtilisateur comp : tousUtilisateurs) {
+            ProfilUtilisateur profil = (comp.getMetriques() != null)
+                ? comp.getMetriques().getProfilUtilisateur()
+                : null;
+
+            if (profil == null) {
+                nouveau++;
+                continue;
             }
-            
-            int total = tousUtilisateurs.size();
-            if (total == 0) {
-                // ✅ Si aucun utilisateur, retourner des valeurs par défaut
-                Map<String, Integer> statsVides = Map.of(
-                    "champions", 0,
-                    "fidele", 0,
-                    "risque", 0,
-                    "nouveau", 0
-                );
-                logger.warn("Aucun utilisateur trouvé, retour de stats vides");
-                return ResponseEntity.ok(statsVides);
+
+            switch (profil) {
+                case NOUVEAU:      nouveau++;      break;
+                case DEBUTANT:     debutant++;     break;
+                case OCCASIONNEL:  occasionnel++;  break;
+                case ACTIF:        actif++;        break;
+                case FIDELE:       fidele++;       break;
+                default:           nouveau++;
             }
-            
-            Map<String, Integer> stats = Map.of(
-                "champions", (champions * 100) / total,
-                "fidele", (fideles * 100) / total,
-                "risque", (risque * 100) / total,
-                "nouveau", (nouveaux * 100) / total
-            );
-            
-            logger.info("Stats RFM calculées: {}", stats);
-            return ResponseEntity.ok(stats);
-            
-        } catch (Exception e) {
-            logger.error("Erreur dans getStatsRFM: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body(Map.of(
-                "champions", 0,
-                "fidele", 0,
-                "risque", 0,
-                "nouveau", 0
-            ));
         }
+
+        int total = tousUtilisateurs.size();
+        if (total == 0) {
+            Map<String, Integer> statsVides = Map.of(
+                "nouveau", 0, "debutant", 0, "occasionnel", 0, "actif", 0, "fidele", 0
+            );
+            logger.warn("Aucun utilisateur trouvé, retour de stats vides");
+            return ResponseEntity.ok(statsVides);
+        }
+
+        Map<String, Integer> stats = Map.of(
+            "nouveau", (nouveau * 100) / total,
+            "debutant", (debutant * 100) / total,
+            "occasionnel", (occasionnel * 100) / total,
+            "actif", (actif * 100) / total,
+            "fidele", (fidele * 100) / total
+        );
+
+        logger.info("Stats RFM calculées: {}", stats);
+        return ResponseEntity.ok(stats);
+
+    } catch (Exception e) {
+        logger.error("Erreur dans getStatsRFM: {}", e.getMessage(), e);
+        return ResponseEntity.status(500).body(Map.of(
+            "nouveau", 0, "debutant", 0, "occasionnel", 0, "actif", 0, "fidele", 0
+        ));
     }
+}
     
     // ==================== RECHERCHES & INTERACTIONS ====================
     

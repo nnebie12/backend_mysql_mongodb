@@ -9,20 +9,23 @@ services:
       - "8080:8080"
     depends_on:
       mysql:
-        condition: service_started
+        condition: service_healthy
     restart: on-failure
     mem_limit: 1g
     environment:
       # MySQL config
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/RECETTE?createDatabaseIfNotExist=true
-      - SPRING_DATASOURCE_USERNAME==${SPRING_DATASOURCE_USERNAME}
+      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
 
-      # MongoDB config pour utiliser MongoDB Atlas ou un serveur externe
-      - SPRING_DATA_MONGODB_URI=mongodb+srv://nnebiekassi12:gG0MQ6ue6qourIJv@dayana.jpsji.mongodb.net/ProjetRecette?retryWrites=true&w=majority&appName=Dayana
+      # MongoDB config
+      - SPRING_DATA_MONGODB_URI=${SPRING_DATA_MONGODB_URI}
       - SPRING_DATA_MONGODB_DATABASE=ProjetRecette
       - SPRING_DATA_MONGODB_SSL_ENABLED=true
       - SPRING_DATA_MONGODB_SSL_INVALID_HOSTNAME_ALLOWED=true
+
+      # Ollama config ✅
+      - OLLAMA_BASE_URL=http://ollama:11434
 
       # Autres configs
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
@@ -48,6 +51,26 @@ services:
     networks:
       - spring-network
     command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ✅ SERVICE OLLAMA
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - spring-network
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+    # Optionnel : pull le modèle au démarrage
+    entrypoint: sh -c "ollama serve & sleep 5 && ollama pull mistral && wait"
 
 networks:
   spring-network:
@@ -55,3 +78,4 @@ networks:
 
 volumes:
   mysql-data:
+  ollama-data:  # ✅ Persiste les modèles téléchargés
